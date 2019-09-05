@@ -35,8 +35,11 @@ func GetApp() *gin.Engine {
 func ApplyRoutes(r *gin.Engine) {
 	api := r.Group("/")
 	{
-		shiftService := services.InitShiftService()
-		shiftCtrl := controllers.ShiftController{ShiftService: shiftService}
+		obolService := services.InitObolService()
+		hestiaService := services.InitHestiaService()
+		plutusService := services.InitPlutusService()
+
+		shiftCtrl := controllers.ShiftController{ObolService: obolService, HestiaService: hestiaService, PlutusService: plutusService}
 		
 		api.GET("shift/address/validate/:coin/:address", shiftCtrl.ValidateAddress)
 		api.GET("shift/address/new/:coin", shiftCtrl.GetNewAddress)

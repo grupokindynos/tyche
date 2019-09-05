@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"github.com/grupokindynos/shift/services"
+	"github.com/gin-gonic/gin"
 )
 
 type ShiftController struct {
-	RateService *services.RateSevice
-	RPCService  *services.RpcService
-	Firebase    *services.Firebase
+	ObolService *services.ObolService
+	HestiaService    *services.HestiaService
+	PlutusService  *services.PlutusService
+
 }
 
 // ValidateAddress checks that the sending address belongs to the hot-wallets
@@ -30,7 +32,7 @@ func (s *ShiftController) GetShiftAmount(c *gin.Context) {
 
 }
 
-// StoreShift validates and stores the shift on firebase
+// StoreShift validates and stores the  shift on firebase
 func (s *ShiftController) StoreShift(c *gin.Context) {
 
 }
