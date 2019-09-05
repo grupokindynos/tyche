@@ -35,9 +35,13 @@ func GetApp() *gin.Engine {
 func ApplyRoutes(r *gin.Engine) {
 	api := r.Group("/")
 	{
-		shiftService := services.InitRateService()
+		shiftService := services.InitShiftService()
 		shiftCtrl := controllers.ShiftController{ShiftService: shiftService}
+		
+		api.GET("shift/address/validate/:coin/:address", shiftCtrl.ValidateAddress)
+		api.GET("shift/address/new/:coin", shiftCtrl.GetNewAddress)
 		api.GET("shift/status/:shiftID", shiftCtrl.GetShiftStatus)
+		api.GET("shift/balance/:coin", shiftCtrl.GetShiftAmount)
 		api.POST("shift/new", shiftCtrl.StoreShift)
 
 	}
