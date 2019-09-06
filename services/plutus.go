@@ -1,12 +1,10 @@
 package services
 
 type PlutusService struct {
-
 }
 
 func InitPlutusService() *PlutusService {
 
-	rs := &PlutusService{
-	}
+	rs := &PlutusService{}
 	return rs
 }
