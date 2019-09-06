@@ -8,16 +8,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/grupokindynos/shift/controllers"
 	"github.com/grupokindynos/shift/services"
+
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"
 )
 
 func init() {
 	_ = godotenv.Load()
+
 }
 
 func main() {
 	port := os.Getenv("PORT")
+	// obolService := services.InitObolService()
+
 	if port == "" {
 		port = "8080"
 	}
@@ -30,6 +34,7 @@ func GetApp() *gin.Engine {
 	App.Use(cors.Default())
 	ApplyRoutes(App)
 	return App
+
 }
 
 func ApplyRoutes(r *gin.Engine) {
@@ -40,7 +45,7 @@ func ApplyRoutes(r *gin.Engine) {
 		plutusService := services.InitPlutusService()
 
 		shiftCtrl := controllers.ShiftController{ObolService: obolService, HestiaService: hestiaService, PlutusService: plutusService}
-		
+
 		api.GET("shift/address/validate/:coin/:address", shiftCtrl.ValidateAddress)
 		api.GET("shift/address/new/:coin", shiftCtrl.GetNewAddress)
 		api.GET("shift/status/:shiftID", shiftCtrl.GetShiftStatus)
