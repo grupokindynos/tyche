@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,14 +18,11 @@ func init() {
 }
 
 func main() {
-	port := os.Getenv("PORT")
-	// obolService := services.InitObolService()
 
-	if port == "" {
-		port = "8080"
-	}
-	App := GetApp()
-	_ = App.Run(":" + port)
+	// obolService := services.InitObolService()
+	plutusService := services.InitPlutusService()
+	plutusService.GetWalletAddress("polis")
+
 }
 
 func GetApp() *gin.Engine {
