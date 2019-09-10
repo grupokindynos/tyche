@@ -2,7 +2,6 @@ package services
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -63,8 +62,6 @@ func (ps *PlutusService) GetWalletAddress(coin string) (status map[string]interf
 	requestURL := ps.PlutusURL + "/address/" + coin
 
 	status, err = ps.GetPlutusData(requestURL)
-
-	fmt.Println(status)
 
 	return status, err
 

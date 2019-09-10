@@ -4,7 +4,6 @@ import (
 	"errors"
 	"math"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,15 +11,6 @@ import (
 )
 
 var (
-	//ObolURL is the URL for the rates
-	ObolURL = os.Getenv("OBOL_URL")
-
-	//PlutusURL is the URL for the hot wallets API
-	PlutusURL = os.Getenv("PLUTUS_URL")
-
-	//HestiaURL is the URL for the connection to the database
-	HestiaURL = os.Getenv("HESTIA_URL")
-
 	//ErrorCoinNotAvailable gets called when a coin is not available in Shift
 	ErrorCoinNotAvailable = errors.New("Coin not available")
 
