@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/grupokindynos/shift/controllers"
-	"github.com/grupokindynos/shift/services"
+	"github.com/grupokindynos/tyche/controllers"
+	"github.com/grupokindynos/tyche/services"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"
@@ -19,6 +19,7 @@ func init() {
 }
 
 func main() {
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -45,13 +46,13 @@ func ApplyRoutes(r *gin.Engine) {
 		hestiaService := services.InitHestiaService()
 		plutusService := services.InitPlutusService()
 
-		shiftCtrl := controllers.ShiftController{ObolService: obolService, HestiaService: hestiaService, PlutusService: plutusService}
+		tycheCtrl := controllers.TycheController{ObolService: obolService, HestiaService: hestiaService, PlutusService: plutusService}
 
-		api.GET("shift/address/validate/:coin/:address", shiftCtrl.ValidateAddress)
-		api.GET("shift/address/new/:coin", shiftCtrl.GetNewAddress)
-		api.GET("shift/status/:shiftID", shiftCtrl.GetShiftStatus)
-		api.GET("shift/balance/:coin", shiftCtrl.GetShiftAmount)
-		api.POST("shift/new", shiftCtrl.StoreShift)
+		api.GET("tyche/address/validate/:coin/:address", tycheCtrl.ValidateAddress)
+		api.GET("tyche/address/new/:coin", tycheCtrl.GetNewAddress)
+		api.GET("tyche/status/:tycheID", tycheCtrl.GetTycheStatus)
+		api.GET("tyche/balance/:coin", tycheCtrl.GetTycheAmount)
+		api.POST("tyche/new", tycheCtrl.StoreTyche)
 
 	}
 	r.NoRoute(func(c *gin.Context) {

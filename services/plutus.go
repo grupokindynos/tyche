@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/grupokindynos/shift/config"
-	"github.com/grupokindynos/shift/models/microservices"
+	"github.com/grupokindynos/tyche/config"
+	"github.com/grupokindynos/tyche/models/microservices"
 )
 
 //PlutusService is the connection handler to the Plutus wallets microservice

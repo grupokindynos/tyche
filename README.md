@@ -1,12 +1,12 @@
-# Shift
+# Tyche
 
-> Shift is the Greek god of wealth
+> Tyche is the Greek goddess of chance, fate and fortune
 
 [![CircleCI](https://circleci.com/gh/grupokindynos/plutus.svg?style=svg)](https://circleci.com/gh/grupokindynos/plutus)
 [![codecov](https://codecov.io/gh/grupokindynos/plutus/branch/master/graph/badge.svg)](https://codecov.io/gh/grupokindynos/plutus)[![Go Report](https://goreportcard.com/badge/github.com/grupokindynos/plutus)](https://goreportcard.com/report/github.com/grupokindynos/plutus)
 [![GoDocs](https://godoc.org/github.com/grupokindynos/plutus?status.svg)](http://godoc.org/github.com/grupokindynos/plutus)
 
-Shift is a microservice API for ultra safe access to multiple cryptocurrency hot-wallets
+tyche is a microservice API for ultra safe access to multiple cryptocurrency hot-wallets
 
 ## Building
 

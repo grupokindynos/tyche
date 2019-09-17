@@ -1,4 +1,4 @@
-module github.com/grupokindynos/shift
+module github.com/grupokindynos/tyche
 
 go 1.12
 

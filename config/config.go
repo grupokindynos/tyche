@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	//ErrorCoinNotAvailable gets called when a coin is not available in Shift
+	//ErrorCoinNotAvailable gets called when a coin is not available in tyche
 	ErrorCoinNotAvailable = errors.New("Coin not available")
 
 	//ErrorRequestTimeout prompts when the connection with the services times out

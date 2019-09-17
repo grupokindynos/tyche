@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/grupokindynos/shift/config"
-	"github.com/grupokindynos/shift/models/microservices"
+	"github.com/grupokindynos/tyche/config"
+	"github.com/grupokindynos/tyche/models/microservices"
 )
 
 //ObolService is the connection to the Obol rate microservice
