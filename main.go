@@ -50,8 +50,8 @@ func ApplyRoutes(r *gin.Engine) {
 
 		api.GET("tyche/address/validate/:coin/:address", tycheCtrl.ValidateAddress)
 		api.GET("tyche/address/new/:coin", tycheCtrl.GetNewAddress)
-		api.GET("tyche/status/:tycheID", tycheCtrl.GetTycheStatus)
-		api.GET("tyche/balance/:coin", tycheCtrl.GetTycheAmount)
+		api.GET("tyche/status/:tycheID", tycheCtrl.GetShiftStatus)
+		api.GET("tyche/balance/:coin", tycheCtrl.GetShiftAmount)
 		api.POST("tyche/new", tycheCtrl.StoreTyche)
 
 	}
