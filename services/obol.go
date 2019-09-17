@@ -16,7 +16,7 @@ type ObolService struct {
 }
 
 //GetRatesSimple gets the rate from a given coin
-func (o *ObolService) GetRatesSimple(coin string) (rates map[string]interface{}, err error) {
+func (o *ObolService) GetRatesSimple(coin string) (rates []map[string]interface{}, err error) {
 	requestURL := o.ObolURL + "/simple/" + coin
 
 	rates, err = o.GetObolData(requestURL)
@@ -26,7 +26,7 @@ func (o *ObolService) GetRatesSimple(coin string) (rates map[string]interface{},
 }
 
 //GetRatesAmount gets the rate from a given coin, given the amount of coins it wants to change
-func (o *ObolService) GetRatesAmount(fromcoin string, tocoin string, amount int) (rates map[string]interface{}, err error) {
+func (o *ObolService) GetRatesComplex(fromcoin string, tocoin string, amount int) (rates []map[string]interface{}, err error) {
 	requestURL := o.ObolURL + "/complex/" + fromcoin + "/" + tocoin + "/?amount=" + strconv.Itoa(amount)
 
 	rates, err = o.GetObolData(requestURL)
@@ -36,7 +36,7 @@ func (o *ObolService) GetRatesAmount(fromcoin string, tocoin string, amount int)
 }
 
 //GetObolData makes a GET request to the plutus API and returns the data as a json array
-func (o *ObolService) GetObolData(requestURL string) (rates map[string]interface{}, err error) {
+func (o *ObolService) GetObolData(requestURL string) (rates []map[string]interface{}, err error) {
 	res, err := config.HTTPClient.Get(requestURL)
 
 	if err != nil {
