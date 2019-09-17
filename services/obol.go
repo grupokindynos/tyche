@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"strconv"
 
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
@@ -19,42 +18,49 @@ type ObolService struct {
 func (o *ObolService) GetRatesSimple(coin string) (rates []map[string]interface{}, err error) {
 	requestURL := o.ObolURL + "/simple/" + coin
 
-	rates, err = o.GetObolData(requestURL)
+	contents, err := o.GetObolData(requestURL)
+
+	var Obol microservices.ObolSimple
+	err = json.Unmarshal(contents, &Obol)
+	rates = Obol.Data
+
+	return rates, err
+
+}
+
+//GetRatesComplex gets the rate from a given coin, given the amount of coins it wants to change
+func (o *ObolService) GetRatesComplex(fromcoin string, tocoin string) (rates float64, err error) {
+	requestURL := o.ObolURL + "/complex/" + fromcoin + "/" + tocoin
+
+	contents, err := o.GetObolData(requestURL)
+
+	var Obol microservices.ObolComplex
+	err = json.Unmarshal(contents, &Obol)
+	rates = Obol.Data
 
 	return rates, err
 
 }
 
 //GetRatesAmount gets the rate from a given coin, given the amount of coins it wants to change
-func (o *ObolService) GetRatesComplex(fromcoin string, tocoin string, amount int) (rates []map[string]interface{}, err error) {
-	requestURL := o.ObolURL + "/complex/" + fromcoin + "/" + tocoin + "/?amount=" + strconv.Itoa(amount)
-
-	rates, err = o.GetObolData(requestURL)
-
-	return rates, err
-
-}
 
 //GetObolData makes a GET request to the plutus API and returns the data as a json array
-func (o *ObolService) GetObolData(requestURL string) (rates []map[string]interface{}, err error) {
+func (o *ObolService) GetObolData(requestURL string) (contents []byte, err error) {
 	res, err := config.HTTPClient.Get(requestURL)
 
 	if err != nil {
-		return rates, config.ErrorRequestTimeout
+		return contents, config.ErrorRequestTimeout
 	}
 	defer func() {
 		_ = res.Body.Close()
 	}()
-	contents, err := ioutil.ReadAll(res.Body)
+	contents, err = ioutil.ReadAll(res.Body)
+
 	if err != nil {
-		return rates, err
+		return contents, err
 	}
 
-	var Obol microservices.Obol
-	err = json.Unmarshal(contents, &Obol)
-	rates = Obol.Data
-
-	return rates, err
+	return contents, err
 
 }
 
