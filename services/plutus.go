@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -18,7 +19,7 @@ type PlutusService struct {
 }
 
 //GetWalletStatus gets the wallet status from a given coin
-func (ps *PlutusService) GetWalletStatus(coin string) (status map[string]interface{}, err error) {
+func (ps *PlutusService) GetWalletStatus(coin string) (status interface{}, err error) {
 	requestURL := ps.PlutusURL + "/status/" + coin
 
 	status, err = ps.GetPlutusData(requestURL)
@@ -28,7 +29,7 @@ func (ps *PlutusService) GetWalletStatus(coin string) (status map[string]interfa
 }
 
 //GetWalletInfo gets the wallet information from a given coin
-func (ps *PlutusService) GetWalletInfo(coin string) (status map[string]interface{}, err error) {
+func (ps *PlutusService) GetWalletInfo(coin string) (status interface{}, err error) {
 	requestURL := ps.PlutusURL + "/info/" + coin
 
 	status, err = ps.GetPlutusData(requestURL)
@@ -38,7 +39,7 @@ func (ps *PlutusService) GetWalletInfo(coin string) (status map[string]interface
 }
 
 //GetWalletBalance gets the wallet balance from a given coin
-func (ps *PlutusService) GetWalletBalance(coin string) (status map[string]interface{}, err error) {
+func (ps *PlutusService) GetWalletBalance(coin string) (status interface{}, err error) {
 	requestURL := ps.PlutusURL + "/info/" + coin
 
 	status, err = ps.GetPlutusData(requestURL)
@@ -48,7 +49,7 @@ func (ps *PlutusService) GetWalletBalance(coin string) (status map[string]interf
 }
 
 //GetWalletTXID gets the transaction id information of a given coin and txid
-func (ps *PlutusService) GetWalletTXID(coin string, txid string) (status map[string]interface{}, err error) {
+func (ps *PlutusService) GetWalletTXID(coin string, txid string) (status interface{}, err error) {
 	requestURL := ps.PlutusURL + "/tx/" + coin + "/" + txid
 
 	status, err = ps.GetPlutusData(requestURL)
@@ -58,17 +59,21 @@ func (ps *PlutusService) GetWalletTXID(coin string, txid string) (status map[str
 }
 
 //GetWalletAddress gets a deposit address from a given coin
-func (ps *PlutusService) GetWalletAddress(coin string) (status map[string]interface{}, err error) {
+func (ps *PlutusService) GetWalletAddress(coin string) (status interface{}, err error) {
 	requestURL := ps.PlutusURL + "/address/" + coin
 
-	status, err = ps.GetPlutusData(requestURL)
+	data, err := ps.GetPlutusData(requestURL)
+
+	status = data
+	fmt.Println(status)
+	fmt.Println(coin)
 
 	return status, err
 
 }
 
 //GetPlutusData makes a GET request to the plutus API and returns the data as a json array
-func (ps *PlutusService) GetPlutusData(requestURL string) (data map[string]interface{}, err error) {
+func (ps *PlutusService) GetPlutusData(requestURL string) (data interface{}, err error) {
 	req, _ := http.NewRequest("GET", requestURL, nil)
 	req.SetBasicAuth(ps.AuthUsername, ps.AuthPassword)
 
@@ -85,6 +90,7 @@ func (ps *PlutusService) GetPlutusData(requestURL string) (data map[string]inter
 		return data, err
 	}
 
+	fmt.Println(string(contents))
 	var Plutus microservices.Plutus
 	err = json.Unmarshal(contents, &Plutus)
 	data = Plutus.Data

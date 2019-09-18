@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/services"
 )
 
@@ -18,7 +19,17 @@ func (s *TycheController) ValidateAddress(c *gin.Context) {
 
 // GetNewAddress fetches a new address from the hot-wallets
 func (s *TycheController) GetNewAddress(c *gin.Context) {
+	coin := c.Param("coin")
+	address, err := s.PlutusService.GetWalletAddress(coin)
 
+	if err != nil {
+		config.GlobalResponse(nil, err, c)
+		return
+	}
+
+	config.GlobalResponse(address, err, c)
+
+	return
 }
 
 // GetTycheStatus gets the current status of a given tyche ID
