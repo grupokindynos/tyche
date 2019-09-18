@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 
@@ -20,8 +19,7 @@ func init() {
 }
 
 func main() {
-	obolService := services.InitObolService()
-	fmt.Println(obolService.GetRatesAmount("polis", "dash", 10000))
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
