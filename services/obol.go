@@ -2,8 +2,10 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
@@ -43,6 +45,19 @@ func (o *ObolService) GetRatesComplex(fromcoin string, tocoin string) (rates flo
 }
 
 //GetRatesAmount gets the rate from a given coin, given the amount of coins it wants to change
+func (o *ObolService) GetRatesAmount(fromcoin string, tocoin string, amount int) (rates float64, err error) {
+	requestURL := o.ObolURL + "/complex/" + fromcoin + "/" + tocoin + "?amount=" + strconv.Itoa(amount)
+
+	fmt.Println(requestURL)
+	contents, err := o.GetObolData(requestURL)
+
+	var Obol microservices.ObolComplex
+	err = json.Unmarshal(contents, &Obol)
+	rates = Obol.Data
+
+	return rates, err
+
+}
 
 //GetObolData makes a GET request to the plutus API and returns the data as a json array
 func (o *ObolService) GetObolData(requestURL string) (contents []byte, err error) {
@@ -61,7 +76,6 @@ func (o *ObolService) GetObolData(requestURL string) (contents []byte, err error
 	}
 
 	return contents, err
-
 }
 
 //InitObolService initializes the connection with the Obol rate microservice
