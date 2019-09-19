@@ -64,7 +64,7 @@ func (ps *PlutusService) GetWalletAddress(coin string) (status string, err error
 
 	data, err := ps.GetPlutusData(requestURL)
 
-	decodedData, err := jws.DecodeJWS(data, os.Getenv("PLUTUS_PUBLIC_KEY"))
+	decodedData, err := jws.DecodeJWS(data.Data, os.Getenv("PLUTUS_PUBLIC_KEY"))
 
 	var PlutusAddress microservices.PlutusAddress
 	err = json.Unmarshal(decodedData, &PlutusAddress)
@@ -75,7 +75,7 @@ func (ps *PlutusService) GetWalletAddress(coin string) (status string, err error
 }
 
 //GetPlutusData makes a GET request to the plutus API and returns the data as a json array
-func (ps *PlutusService) GetPlutusData(requestURL string) (data string, err error) {
+func (ps *PlutusService) GetPlutusData(requestURL string) (data microservices.Plutus, err error) {
 	req, _ := http.NewRequest("GET", requestURL, nil)
 	req.SetBasicAuth(ps.AuthUsername, ps.AuthPassword)
 
@@ -94,7 +94,7 @@ func (ps *PlutusService) GetPlutusData(requestURL string) (data string, err erro
 
 	var Plutus microservices.Plutus
 	err = json.Unmarshal(contents, &Plutus)
-	data = Plutus.Data
+	data = Plutus
 
 	return data, err
 
