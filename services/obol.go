@@ -2,7 +2,6 @@ package services
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -48,7 +47,6 @@ func (o *ObolService) GetRatesComplex(fromcoin string, tocoin string) (rates flo
 func (o *ObolService) GetRatesAmount(fromcoin string, tocoin string, amount int) (rates float64, err error) {
 	requestURL := o.ObolURL + "/complex/" + fromcoin + "/" + tocoin + "?amount=" + strconv.Itoa(amount)
 
-	fmt.Println(requestURL)
 	contents, err := o.GetObolData(requestURL)
 
 	var Obol microservices.ObolComplex

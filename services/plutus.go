@@ -2,13 +2,13 @@ package services
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
+	"github.com/grupokindynos/tyche/utils/jws"
 )
 
 //PlutusService is the connection handler to the Plutus wallets microservice
@@ -59,21 +59,23 @@ func (ps *PlutusService) GetWalletTXID(coin string, txid string) (status interfa
 }
 
 //GetWalletAddress gets a deposit address from a given coin
-func (ps *PlutusService) GetWalletAddress(coin string) (status interface{}, err error) {
+func (ps *PlutusService) GetWalletAddress(coin string) (status string, err error) {
 	requestURL := ps.PlutusURL + "/address/" + coin
 
 	data, err := ps.GetPlutusData(requestURL)
 
-	status = data
-	fmt.Println(status)
-	fmt.Println(coin)
+	decodedData, err := jws.DecodeJWS(data, os.Getenv("PLUTUS_PUBLIC_KEY"))
+
+	var PlutusAddress microservices.PlutusAddress
+	err = json.Unmarshal(decodedData, &PlutusAddress)
+	status = PlutusAddress.Address
 
 	return status, err
 
 }
 
 //GetPlutusData makes a GET request to the plutus API and returns the data as a json array
-func (ps *PlutusService) GetPlutusData(requestURL string) (data interface{}, err error) {
+func (ps *PlutusService) GetPlutusData(requestURL string) (data string, err error) {
 	req, _ := http.NewRequest("GET", requestURL, nil)
 	req.SetBasicAuth(ps.AuthUsername, ps.AuthPassword)
 
@@ -90,7 +92,6 @@ func (ps *PlutusService) GetPlutusData(requestURL string) (data interface{}, err
 		return data, err
 	}
 
-	fmt.Println(string(contents))
 	var Plutus microservices.Plutus
 	err = json.Unmarshal(contents, &Plutus)
 	data = Plutus.Data

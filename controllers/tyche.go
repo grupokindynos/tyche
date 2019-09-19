@@ -21,6 +21,7 @@ func (s *TycheController) ValidateAddress(c *gin.Context) {
 func (s *TycheController) GetNewAddress(c *gin.Context) {
 	coin := c.Param("coin")
 	address, err := s.PlutusService.GetWalletAddress(coin)
+	//decodedAddress, err := jws.DecodeJWS(address, os.Getenv("PLUTUS_URL")  )
 
 	if err != nil {
 		config.GlobalResponse(nil, err, c)

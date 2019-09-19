@@ -10,6 +10,7 @@ import (
 	"gopkg.in/square/go-jose.v2"
 )
 
+//DecodeJWS decodes a string given the token.
 func DecodeJWS(token string, encodedPubKey string) ([]byte, error) {
 	pubKeyBytes, err := base64.StdEncoding.DecodeString(encodedPubKey)
 	if err != nil {
@@ -31,6 +32,7 @@ func DecodeJWS(token string, encodedPubKey string) ([]byte, error) {
 	return data, nil
 }
 
+//EncodeJWS encodes a string given the private key.
 func EncodeJWS(payload interface{}, privkey string) (string, error) {
 	privKeyBytes, err := base64.StdEncoding.DecodeString(privkey)
 	if err != nil {
