@@ -52,7 +52,7 @@ func ApplyRoutes(r *gin.Engine) {
 		api.GET("tyche/address/new/:coin", tycheCtrl.GetNewAddress)
 		api.GET("tyche/status/:tycheID", tycheCtrl.GetShiftStatus)
 		api.GET("tyche/balance/:coin", tycheCtrl.GetShiftAmount)
-		api.POST("tyche/new", tycheCtrl.StoreTyche)
+		api.POST("tyche/new", tycheCtrl.StoreShift)
 
 	}
 	r.NoRoute(func(c *gin.Context) {

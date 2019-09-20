@@ -3,6 +3,7 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/grupokindynos/tyche/config"
+	"github.com/grupokindynos/tyche/models/microservices"
 	"github.com/grupokindynos/tyche/services"
 )
 
@@ -21,7 +22,6 @@ func (s *TycheController) ValidateAddress(c *gin.Context) {
 func (s *TycheController) GetNewAddress(c *gin.Context) {
 	coin := c.Param("coin")
 	address, err := s.PlutusService.GetWalletAddress(coin)
-	//decodedAddress, err := jws.DecodeJWS(address, os.Getenv("PLUTUS_URL")  )
 
 	if err != nil {
 		config.GlobalResponse(nil, err, c)
@@ -33,17 +33,28 @@ func (s *TycheController) GetNewAddress(c *gin.Context) {
 	return
 }
 
-// GetTycheStatus gets the current status of a given tyche ID
+// GetShiftStatus gets the current status of a given tyche ID
 func (s *TycheController) GetShiftStatus(c *gin.Context) {
 
 }
 
-// GetTycheBalance calculates the amount of tyche that an individual can do
+// GetShiftAmount calculates the amount of balance that an individual can do
 func (s *TycheController) GetShiftAmount(c *gin.Context) {
+	coin := c.Param("coin")
+	balance, err := s.PlutusService.GetWalletBalance(coin)
 
+	if err != nil {
+		config.GlobalResponse(nil, err, c)
+		return
+	}
+	balanceModel := microservices.TycheBalance{balance}
+
+	config.GlobalResponse(balanceModel, err, c)
+
+	return
 }
 
-// StoreTyche validates and stores the  tyche on firebase
-func (s *TycheController) StoreTyche(c *gin.Context) {
+// StoreShift validates and stores the shift on firebase
+func (s *TycheController) StoreShift(c *gin.Context) {
 
 }
