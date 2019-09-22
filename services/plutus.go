@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"url"
 
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
@@ -62,6 +63,17 @@ func (ps *PlutusService) GetWalletTXID(coin string, txid string) (status interfa
 
 }
 
+//VerifyAddress verifies that the given address is from the hot-wallets
+func (ps *PlutusService) VerifyAddress(coin string) (status interface{}, err error) {
+	requestURL := ps.PlutusURL + "/info/" + coin
+	resp, err := http.PostForm("http://example.com/form",
+		url.Values{"key": {"Value"}, "id": {"123"}})
+
+	status, err = ps.GetPlutusData(requestURL)
+
+	return status, err
+}
+
 //GetWalletAddress gets a deposit address from a given coin
 func (ps *PlutusService) GetWalletAddress(coin string) (status string, err error) {
 	requestURL := ps.PlutusURL + "/address/" + coin
@@ -85,6 +97,30 @@ func (ps *PlutusService) GetWalletAddress(coin string) (status string, err error
 //GetPlutusData makes a GET request to the plutus API and returns the data as a json array
 func (ps *PlutusService) GetPlutusData(requestURL string) (data []byte, err error) {
 	req, _ := http.NewRequest("GET", requestURL, nil)
+	req.SetBasicAuth(ps.AuthUsername, ps.AuthPassword)
+
+	res, err := config.HTTPClient.Do(req)
+
+	if err != nil {
+		return data, config.ErrorRequestTimeout
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+	contents, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return data, err
+	}
+
+	data = contents
+
+	return data, err
+
+}
+
+//PostPlutusData makes a POST request to the plutus API and returns the data as a json array
+func (ps *PlutusService) PostPlutusData(requestURL string, buf []byte) (data []byte, err error) {
+	req, _ := http.NewRequest("POST", requestURL, json.NewEncoder(buf).Encode(b))
 	req.SetBasicAuth(ps.AuthUsername, ps.AuthPassword)
 
 	res, err := config.HTTPClient.Do(req)
