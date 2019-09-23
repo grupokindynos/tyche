@@ -118,30 +118,6 @@ func (ps *PlutusService) GetPlutusData(requestURL string) (data []byte, err erro
 
 }
 
-//PostPlutusData makes a POST request to the plutus API and returns the data as a json array
-func (ps *PlutusService) PostPlutusData(requestURL string, buf []byte) (data []byte, err error) {
-	req, _ := http.NewRequest("POST", requestURL, json.NewEncoder(buf).Encode(b))
-	req.SetBasicAuth(ps.AuthUsername, ps.AuthPassword)
-
-	res, err := config.HTTPClient.Do(req)
-
-	if err != nil {
-		return data, config.ErrorRequestTimeout
-	}
-	defer func() {
-		_ = res.Body.Close()
-	}()
-	contents, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return data, err
-	}
-
-	data = contents
-
-	return data, err
-
-}
-
 //InitPlutusService initializes the connection with the Plutus wallets microservice
 func InitPlutusService() *PlutusService {
 

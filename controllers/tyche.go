@@ -19,11 +19,6 @@ type TycheController struct {
 	PlutusService *services.PlutusService
 }
 
-// ValidateAddress checks that the sending address belongs to the hot-wallets
-func (s *TycheController) ValidateAddress(c *gin.Context) {
-
-}
-
 // GetNewAddress fetches a new address from the hot-wallets
 func (s *TycheController) GetNewAddress(c *gin.Context) {
 	coin := c.Param("coin")
@@ -39,10 +34,7 @@ func (s *TycheController) GetNewAddress(c *gin.Context) {
 	return
 }
 
-// GetShiftStatus gets the current status of a given tyche ID
-func (s *TycheController) GetShiftStatus(c *gin.Context) {
-
-}
+//
 
 // GetShiftAmount calculates the amount of balance that an individual can do
 func (s *TycheController) GetShiftAmount(c *gin.Context) {
