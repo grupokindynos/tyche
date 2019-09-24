@@ -48,11 +48,10 @@ func ApplyRoutes(r *gin.Engine) {
 
 		tycheCtrl := controllers.TycheController{ObolService: obolService, HestiaService: hestiaService, PlutusService: plutusService}
 
-		api.GET("tyche/address/validate/:coin/:address", tycheCtrl.ValidateAddress)
 		api.GET("tyche/address/new/:coin", tycheCtrl.GetNewAddress)
-		api.GET("tyche/status/:tycheID", tycheCtrl.GetShiftStatus)
 		api.GET("tyche/balance/:coin", tycheCtrl.GetShiftAmount)
-		api.POST("tyche/new", tycheCtrl.StoreShift)
+		api.POST("tyche/shift/prepare", tycheCtrl.PrepareShift)
+		api.POST("tyche/shift/new", tycheCtrl.StoreShift)
 
 	}
 	r.NoRoute(func(c *gin.Context) {

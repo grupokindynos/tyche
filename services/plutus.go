@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"url"
 
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
@@ -61,17 +60,6 @@ func (ps *PlutusService) GetWalletTXID(coin string, txid string) (status interfa
 
 	return status, err
 
-}
-
-//VerifyAddress verifies that the given address is from the hot-wallets
-func (ps *PlutusService) VerifyAddress(coin string) (status interface{}, err error) {
-	requestURL := ps.PlutusURL + "/info/" + coin
-	resp, err := http.PostForm("http://example.com/form",
-		url.Values{"key": {"Value"}, "id": {"123"}})
-
-	status, err = ps.GetPlutusData(requestURL)
-
-	return status, err
 }
 
 //GetWalletAddress gets a deposit address from a given coin
