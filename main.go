@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/grupokindynos/tyche/controllers"
+	"github.com/grupokindynos/tyche/models/microservices"
 	"github.com/grupokindynos/tyche/services"
 
 	_ "github.com/heroku/x/hmetrics/onload"
@@ -45,12 +46,13 @@ func ApplyRoutes(r *gin.Engine) {
 		obolService := services.InitObolService()
 		hestiaService := services.InitHestiaService()
 		plutusService := services.InitPlutusService()
+		var cache = map[string]microservices.TycheRate{}
 
-		tycheCtrl := controllers.TycheController{ObolService: obolService, HestiaService: hestiaService, PlutusService: plutusService}
+		tycheCtrl := controllers.TycheController{ObolService: obolService, HestiaService: hestiaService, PlutusService: plutusService, Cache: cache}
 
 		api.GET("tyche/address/new/:coin", tycheCtrl.GetNewAddress)
 		api.GET("tyche/balance/:coin", tycheCtrl.GetShiftAmount)
-		api.POST("tyche/shift/prepare", tycheCtrl.PrepareShift)
+		api.POST("tyche/shift/prepare/:fromcoin/:tocoin", tycheCtrl.PrepareShift)
 		api.POST("tyche/shift/new", tycheCtrl.StoreShift)
 
 	}
