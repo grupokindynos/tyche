@@ -11,11 +11,19 @@ type TycheRate struct {
 	Timestamp int64   `json:"timestamp"`
 	FromCoin  string  `json:"fromcoin"`
 	ToCoin    string  `json:"tocoin"`
-	Amount    string  `json:"amount"`
+	Amount    int64   `json:"amount"`
+	Fee       int64   `json:"fee"`
+	Address   string  `json:"address"`
 }
 
 //TychePrepare is the model for the response of the prepare endpoint
 type TychePrepare struct {
 	Token string    `json:"token"`
 	Rate  TycheRate `json:"rate"`
+}
+
+//Shift is the model for the response of the prepare endpoint
+type Shift struct {
+	Token          string `json:"token"`
+	RawTransaction string `json:"raw_tx"`
 }

@@ -24,7 +24,7 @@ type Address struct {
 //PlutusBalance is the model for the response from the Plutus address microservice
 type PlutusBalance struct {
 	Data   Balance "json:data"
-	Status int64
+	Status int64   "json:status"
 }
 
 //Balance is the model for the hot-wallets balance

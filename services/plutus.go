@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -68,6 +69,7 @@ func (ps *PlutusService) GetWalletAddress(coin string) (status string, err error
 
 	data, err := ps.GetPlutusData(requestURL)
 
+	fmt.Println(data)
 	var Plutus microservices.PlutusEncoded
 	err = json.Unmarshal(data, &Plutus)
 	encodedData := Plutus.Data
