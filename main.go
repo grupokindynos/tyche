@@ -60,3 +60,29 @@ func ApplyRoutes(r *gin.Engine) {
 		c.String(http.StatusNotFound, "Not Found")
 	})
 }
+
+/*
+func ValidateRequest(c *gin.Context, method func(payload []byte, uid string, voucherid string) (interface{}, error)) {
+	fbToken := c.GetHeader("Token")
+
+	if fbToken == "" {
+		responses.GlobalResponseNoAuth(c)
+		return
+	}
+	tokenBytes, _ := c.GetRawData()
+	var tokenStr string
+	if len(tokenBytes) > 0 {
+		err := json.Unmarshal(tokenBytes, &tokenStr)
+		responses.GlobalResponseError(nil, err, c)
+		return
+	}
+	valid, payload, uid, err := ppat.VerifyPPATToken("ladon", os.Getenv("MASTER_PASSWORD"), fbToken, tokenStr, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("LADON_PRIVATE_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
+	if !valid {
+		responses.GlobalResponseNoAuth(c)
+		return
+	}
+	response, err := method(payload, uid, voucherid)
+	responses.GlobalResponseError(response, err, c)
+	return
+}
+*/

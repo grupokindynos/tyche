@@ -27,3 +27,9 @@ type Shift struct {
 	Token          string `json:"token"`
 	RawTransaction string `json:"raw_tx"`
 }
+
+type TycheReceive struct {
+	FromCoin string `json:"fromcoin"`
+	ToCoin   string `json:"tocoin"`
+	Amount   int64  `json:"amount"`
+}
