@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -12,8 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/grupokindynos/common/jwt"
 	"github.com/grupokindynos/common/obol"
-	"github.com/grupokindynos/common/responses"
-	"github.com/grupokindynos/common/tokens/ppat"
+	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
 	"github.com/grupokindynos/tyche/services"
@@ -21,8 +19,8 @@ import (
 
 //TycheController has the functions for handling the API endpoints
 type TycheController struct {
-	ObolService   *services.ObolService
-	HestiaService *services.HestiaService
+	ObolService *services.ObolService
+
 	PlutusService *services.PlutusService
 	Cache         map[string]microservices.TycheRate
 }
@@ -85,64 +83,34 @@ func (s *TycheController) GetRateStatus(c *gin.Context) {
 	return
 }
 
-//WIP
-//1. Verify Token from Hestia
-//2. Use encrypted token as parameter in Query, decrypt with UID.
-//3. Get address from Plutus
-//
-
-//createTestToken creates a JWE using a given json string. It is mainly used for testing purposes
-func createTestToken(jsonStr string) (token string) {
-	var data microservices.TycheReceive
-	json.Unmarshal([]byte(jsonStr), &data)
-
-	token, _ = jwt.EncryptJWE(os.Getenv("TEST_UID"), data)
-
-	return token
-}
-
 // PrepareShift prepares a shift given the coins and amount, and returns a token and a timestamp
-func (s *TycheController) PrepareShift(c *gin.Context) {
+func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{}, error) {
 
-	fbToken := c.GetHeader("Token")
-	tokenBytes, _ := c.GetRawData()
+	// Get Data from Payload
+	var payloadStr string
+	json.Unmarshal(payload, &payloadStr)
 
-	tokenStr := string(tokenBytes)
+	var shiftData microservices.TycheReceive
+	json.Unmarshal([]byte(payloadStr), &shiftData)
 
-	// var receiveData microservices.TycheReceive
-	if len(tokenBytes) > 0 {
-		valid, payload, uid, err := ppat.VerifyPPATToken("tyche", os.Getenv("MASTER_PASSWORD"), fbToken, tokenStr, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
-		fmt.Println(valid)
-		fmt.Println(payload)
-		fmt.Println(uid)
+	// Get rate
+	fromCoin := shiftData.FromCoin
+	toCoin := shiftData.ToCoin
+	amount := shiftData.Amount
 
-		responses.GlobalResponseError(nil, err, c)
-		return
-	}
-
-	// Verify firebase token WIP
-
-	// Decrypt payload
-
-	// Get Rate (Decrypt with uid WIP)
-	fromCoin := c.Param("fromcoin")
-	toCoin := c.Param("tocoin")
-	amount := c.Query("amount")
-	uid := c.Query("uid")
-
-	rate, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, toCoin, amount)
+	rate, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, toCoin, strconv.Itoa(int(amount)))
 
 	if err != nil {
-		return
+		return rate, err
 	}
 
-	amountInteger, _ := strconv.Atoi(amount)
-	fee := float64(amountInteger) * .01
+	fee := float64(amount) * .01
 
-	// WIP get address
-	address, _ := s.PlutusService.GetWalletAddress(toCoin)
+	//Get address from Plutus
+	address, _ := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), "POLIS", os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 
-	rateObject := microservices.TycheRate{Rate: rate, Timestamp: time.Now().Unix(), Amount: int64(amountInteger), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
+	//Create rate object
+	rateObject := microservices.TycheRate{Rate: rate, Timestamp: time.Now().Unix(), Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
 
 	// Generate token hashing the uid
 	h := sha256.New()
@@ -155,9 +123,9 @@ func (s *TycheController) PrepareShift(c *gin.Context) {
 	// Store token in cache
 	go s.WaitRate(rateObject, hashString)
 
-	config.GlobalResponse(responseObject, err, c)
+	token, err := jwt.EncryptJWE(uid, responseObject)
 
-	return
+	return token, err
 }
 
 // StoreShift validates and stores the shift on firebase
