@@ -2,7 +2,7 @@ package microservices
 
 //TycheBalance is the model for the GetBalance endpoint
 type TycheBalance struct {
-	Balance float64 `json:"balance"`
+	Balance string `json:"balance"`
 }
 
 //TycheRate is the model for storing rates in the cache

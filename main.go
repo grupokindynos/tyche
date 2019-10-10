@@ -11,7 +11,6 @@ import (
 	"github.com/grupokindynos/common/tokens/ppat"
 	"github.com/grupokindynos/tyche/controllers"
 	"github.com/grupokindynos/tyche/models/microservices"
-	"github.com/grupokindynos/tyche/services"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"
@@ -46,13 +45,11 @@ func GetApp() *gin.Engine {
 func ApplyRoutes(r *gin.Engine) {
 	api := r.Group("/")
 	{
-		obolService := services.InitObolService()
-		plutusService := services.InitPlutusService()
+
 		var cache = map[string]microservices.TycheRate{}
 
-		tycheCtrl := controllers.TycheController{ObolService: obolService, PlutusService: plutusService, Cache: cache}
+		tycheCtrl := controllers.TycheController{Cache: cache}
 
-		api.GET("tyche/address/new/:coin", tycheCtrl.GetNewAddress)
 		api.GET("tyche/balance/:coin", tycheCtrl.GetShiftAmount)
 		api.POST("tyche/shift/prepare/:fromcoin/:tocoin", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareShift) })
 		api.POST("tyche/shift/new", tycheCtrl.StoreShift)

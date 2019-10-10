@@ -18,15 +18,11 @@ import (
 	"github.com/grupokindynos/common/responses"
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
-	"github.com/grupokindynos/tyche/services"
 )
 
 //TycheController has the functions for handling the API endpoints
 type TycheController struct {
-	ObolService *services.ObolService
-
-	PlutusService *services.PlutusService
-	Cache         map[string]microservices.TycheRate
+	Cache map[string]microservices.TycheRate
 }
 
 //WaitRate is used for storing rates on the cache
@@ -42,41 +38,10 @@ func (s *TycheController) WaitRate(rate microservices.TycheRate, hashString stri
 	delete(s.Cache, hashString)
 }
 
-// GetNewAddress fetches a new address from the hot-wallets
-func (s *TycheController) GetNewAddress(c *gin.Context) {
-	coin := c.Param("coin")
-	address, err := s.PlutusService.GetWalletAddress(coin)
-
-	if err != nil {
-		config.GlobalResponse(nil, err, c)
-		return
-	}
-
-	config.GlobalResponse(address, err, c)
-
-	return
-}
-
 // GetShiftAmount calculates the amount of balance that an individual can do
 func (s *TycheController) GetShiftAmount(c *gin.Context) {
 	coin := c.Param("coin")
-	balance, err := s.PlutusService.GetWalletBalance(coin)
-
-	if err != nil {
-		config.GlobalResponse(nil, err, c)
-		return
-	}
-	balanceModel := microservices.TycheBalance{balance}
-
-	config.GlobalResponse(balanceModel, err, c)
-
-	return
-}
-
-// GetRateStatus calculates the amount of balance that an individual can do
-func (s *TycheController) GetRateStatus(c *gin.Context) {
-	coin := c.Param("coin")
-	balance, err := s.PlutusService.GetWalletBalance(coin)
+	balance, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), coin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 
 	if err != nil {
 		config.GlobalResponse(nil, err, c)
