@@ -4,14 +4,17 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/grupokindynos/common/jwt"
+	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/plutus"
+	"github.com/grupokindynos/common/responses"
 	"github.com/grupokindynos/tyche/config"
 	"github.com/grupokindynos/tyche/models/microservices"
 	"github.com/grupokindynos/tyche/services"
@@ -31,7 +34,9 @@ func (s *TycheController) WaitRate(rate microservices.TycheRate, hashString stri
 	s.Cache[hashString] = rate
 
 	// Wait for N seconds, then delete from cache
-	duration, _ := strconv.Atoi(os.Getenv("PREPARE_SECONDS"))
+	seconds, _ := strconv.Atoi(os.Getenv("PREPARE_SECONDS"))
+	duration := time.Duration(seconds)
+
 	time.Sleep(time.Duration(duration) * time.Second)
 	delete(s.Cache, hashString)
 }
@@ -83,7 +88,7 @@ func (s *TycheController) GetRateStatus(c *gin.Context) {
 	return
 }
 
-// PrepareShift prepares a shift given the coins and amount, and returns a token and a timestamp
+// PrepareShift prepares a shift given the coins and amount, and returns a token and a timestamp`
 func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{}, error) {
 
 	// Get Data from Payload
@@ -93,12 +98,23 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	var shiftData microservices.TycheReceive
 	json.Unmarshal([]byte(payloadStr), &shiftData)
 
-	// Get rate
-	fromCoin := shiftData.FromCoin
-	toCoin := shiftData.ToCoin
-	amount := shiftData.Amount
+	fromCoin := "DASH"
+	toCoin := "BTC"
+	amount := ".0001"
 
-	rate, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, toCoin, strconv.Itoa(int(amount)))
+	// Verify coin is on coin factory
+	_, err := coinfactory.GetCoin(fromCoin)
+	if err != nil {
+		return fromCoin, err
+	}
+
+	_, err = coinfactory.GetCoin(toCoin)
+	if err != nil {
+		return fromCoin, err
+	}
+
+	// Get rate
+	rate, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, toCoin, amount)
 
 	if err != nil {
 		return rate, err
@@ -107,63 +123,57 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	fee := float64(amount) * .01
 
 	//Get address from Plutus
-	address, _ := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), "POLIS", os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
+	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 
 	//Create rate object
-	rateObject := microservices.TycheRate{Rate: rate, Timestamp: time.Now().Unix(), Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
+	rateObject := microservices.TycheRate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
 
 	// Generate token hashing the uid
 	h := sha256.New()
 	h.Write([]byte(uid))
 	hashString := base64.URLEncoding.EncodeToString(h.Sum(nil))
+	seconds, _ := strconv.Atoi(os.Getenv("PREPARE_SECONDS"))
 
 	// Create response object
-	responseObject := microservices.TychePrepare{Token: hashString, Rate: rateObject}
+	responseObject := microservices.TychePrepare{Token: hashString, Rate: rateObject, Timestamp: time.Now().Unix() + int64(seconds)}
 
 	// Store token in cache
 	go s.WaitRate(rateObject, hashString)
 
-	token, err := jwt.EncryptJWE(uid, responseObject)
+	// token, err := jwt.EncryptJWE(uid, responseObject)
 
-	return token, err
+	return responseObject, err
 }
 
 // StoreShift validates and stores the shift on firebase
 func (s *TycheController) StoreShift(c *gin.Context) {
+	rawTX := c.Query("raw_tx")
+	token := c.Query("token")
+
+	data, valid := s.Cache[token]
+
+	if valid != true {
+		responses.GlobalResponseError("", errors.New("token not found"), c)
+	}
+
+	transaction, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(rawTX), data.ToCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
+
+	var isAddressOnTx, isAmountCorrect = false, false
+	for _, vout := range transaction.Vout {
+		if vout.ScriptPubKey.Addresses[0] == data.Address {
+			isAddressOnTx = true
+		}
+		//amountToSat := vout.Value * 1e8
+		fmt.Println(vout.ValueSat)
+		fmt.Println(data.Amount)
+	}
+
+	if !isAddressOnTx || isAmountCorrect {
+		fmt.Println("Not working")
+		return
+	}
 	/*
-		// Decrypt Data
 
-
-		err := c.BindJSON(&Shift)
-		if err != nil {
-			config.CaronteResponse(nil, config.ErrorUnmarshal, c)
-			return
-		}
-
-		// Validations
-		// 1. Make sure all values are filled.
-		if Shift.PaymentAddress == "" ||
-			Shift.PaymentCoin == "" ||
-			Shift.PaymentRawTx == "" ||
-			Shift.ToAddress == "" ||
-			Shift.ToCoin == "" ||
-			Shift.UID == "" {
-			config.CaronteResponse(nil, config.ErrorShiftInfoIncomplete, c)
-			return
-		}
-
-		// 2. Get coin data, return false if a user payed or want a coin that doesn't exist
-		paymentCoinData, err := coinFactory.GetCoin(Shift.PaymentCoin)
-		if err != nil {
-			config.CaronteResponse(nil, config.ErrorShiftCoinDontExist, c)
-			return
-		}
-
-		toCoinData, err := coinFactory.GetCoin(Shift.ToCoin)
-		if err != nil {
-			config.CaronteResponse(nil, config.ErrorShiftCoinDontExist, c)
-			return
-		}
 
 		// 3. Make sure payment address is ours and raw tx has the correct information
 		// 3.1 Check address

@@ -7,19 +7,19 @@ type TycheBalance struct {
 
 //TycheRate is the model for storing rates in the cache
 type TycheRate struct {
-	Rate      float64 `json:"rate"`
-	Timestamp int64   `json:"timestamp"`
-	FromCoin  string  `json:"fromcoin"`
-	ToCoin    string  `json:"tocoin"`
-	Amount    int64   `json:"amount"`
-	Fee       int64   `json:"fee"`
-	Address   string  `json:"address"`
+	Rate     float64 `json:"rate"`
+	FromCoin string  `json:"fromcoin"`
+	ToCoin   string  `json:"tocoin"`
+	Amount   int64   `json:"amount"`
+	Fee      int64   `json:"fee"`
+	Address  string  `json:"address"`
 }
 
 //TychePrepare is the model for the response of the prepare endpoint
 type TychePrepare struct {
-	Token string    `json:"token"`
-	Rate  TycheRate `json:"rate"`
+	Token     string    `json:"token"`
+	Timestamp int64     `json:"timestamp"`
+	Rate      TycheRate `json:"rate"`
 }
 
 //Shift is the model for the response of the prepare endpoint
@@ -28,6 +28,7 @@ type Shift struct {
 	RawTransaction string `json:"raw_tx"`
 }
 
+//TycheReceive is the object that Tyche receives from frontend
 type TycheReceive struct {
 	FromCoin string `json:"fromcoin"`
 	ToCoin   string `json:"tocoin"`
