@@ -10,7 +10,7 @@ import (
 	"github.com/grupokindynos/common/responses"
 	"github.com/grupokindynos/common/tokens/ppat"
 	"github.com/grupokindynos/tyche/controllers"
-	"github.com/grupokindynos/tyche/models/microservices"
+	"github.com/grupokindynos/tyche/models/tyche"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"
@@ -46,7 +46,7 @@ func ApplyRoutes(r *gin.Engine) {
 	api := r.Group("/")
 	{
 
-		var cache = map[string]microservices.TycheRate{}
+		var cache = map[string]tyche.Rate{}
 
 		tycheCtrl := controllers.TycheController{Cache: cache}
 

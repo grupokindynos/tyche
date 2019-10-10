@@ -1,12 +1,12 @@
-package microservices
+package tyche
 
 //TycheBalance is the model for the GetBalance endpoint
-type TycheBalance struct {
+type Balance struct {
 	Balance string `json:"balance"`
 }
 
 //TycheRate is the model for storing rates in the cache
-type TycheRate struct {
+type Rate struct {
 	Rate     float64 `json:"rate"`
 	FromCoin string  `json:"fromcoin"`
 	ToCoin   string  `json:"tocoin"`
@@ -16,10 +16,10 @@ type TycheRate struct {
 }
 
 //TychePrepare is the model for the response of the prepare endpoint
-type TychePrepare struct {
-	Token     string    `json:"token"`
-	Timestamp int64     `json:"timestamp"`
-	Rate      TycheRate `json:"rate"`
+type Prepare struct {
+	Token     string `json:"token"`
+	Timestamp int64  `json:"timestamp"`
+	Rate      Rate   `json:"rate"`
 }
 
 //Shift is the model for the response of the prepare endpoint
@@ -29,7 +29,7 @@ type Shift struct {
 }
 
 //TycheReceive is the object that Tyche receives from frontend
-type TycheReceive struct {
+type Receive struct {
 	FromCoin string `json:"fromcoin"`
 	ToCoin   string `json:"tocoin"`
 	Amount   int64  `json:"amount"`

@@ -16,17 +16,17 @@ import (
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/responses"
+	"github.com/grupokindynos/models/tyche"
 	"github.com/grupokindynos/tyche/config"
-	"github.com/grupokindynos/tyche/models/microservices"
 )
 
 //TycheController has the functions for handling the API endpoints
 type TycheController struct {
-	Cache map[string]microservices.TycheRate
+	Cache map[string]tyche.Rate
 }
 
 //WaitRate is used for storing rates on the cache
-func (s *TycheController) WaitRate(rate microservices.TycheRate, hashString string) {
+func (s *TycheController) WaitRate(rate tyche.Rate, hashString string) {
 	// Store hash in cache
 	s.Cache[hashString] = rate
 
@@ -47,7 +47,7 @@ func (s *TycheController) GetShiftAmount(c *gin.Context) {
 		config.GlobalResponse(nil, err, c)
 		return
 	}
-	balanceModel := microservices.TycheBalance{balance}
+	balanceModel := tyche.Balance{balance}
 
 	config.GlobalResponse(balanceModel, err, c)
 
@@ -61,12 +61,12 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	var payloadStr string
 	json.Unmarshal(payload, &payloadStr)
 
-	var shiftData microservices.TycheReceive
+	var shiftData tyche.Receive
 	json.Unmarshal([]byte(payloadStr), &shiftData)
 
 	fromCoin := "BTC"
 	toCoin := "POLIS"
-	amount := 7058
+	amount := 3000
 	amountStr := fmt.Sprintf("%f", amount/1e8)
 
 	// Verify coin is on coin factory
@@ -93,7 +93,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	address = "38yE9BaCgUpCawt6bWsDLcvoqcmHepdWoq"
 	//Create rate object
-	rateObject := microservices.TycheRate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
+	rateObject := tyche.Rate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
 
 	// Generate token hashing the uid
 	h := sha256.New()
@@ -102,7 +102,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	seconds, _ := strconv.Atoi(os.Getenv("PREPARE_SECONDS"))
 
 	// Create response object
-	responseObject := microservices.TychePrepare{Token: hashString, Rate: rateObject, Timestamp: time.Now().Unix() + int64(seconds)}
+	responseObject := tyche.Prepare{Token: hashString, Rate: rateObject, Timestamp: time.Now().Unix() + int64(seconds)}
 
 	// Store token in cache
 	go s.WaitRate(rateObject, hashString)
@@ -152,61 +152,16 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 	}
 
 	// Broadcast transaction
+	coinInfo, _ := coinfactory.GetCoin(data.FromCoin)
+
+	res, err := config.HTTPClient.Get("https://" + coinInfo.BlockchainInfo.ExternalSource + "/api/v2/sendtx/" + rawTX)
+	if err != nil {
+		responses.GlobalResponseError("", errors.New("could not broadcast transaction"), c)
+	}
+
+	fmt.Println(res, err)
 
 	/*
-
-
-		// 3. Make sure payment address is ours and raw tx has the correct information
-		// 3.1 Check address
-		valid, err := s.RPCService.ValidateAddress(paymentCoinData, Shift.PaymentAddress)
-		if !valid || err != nil {
-			config.CaronteResponse(nil, config.ErrorShiftValidatingAddressPayed, c)
-			return
-		}
-
-		// 3.2 Deserialize Raw Tx with node
-		transaction, err := s.RPCService.DecodeRawTransaction(paymentCoinData, Shift.PaymentRawTx)
-		if err != nil {
-			config.CaronteResponse(nil, config.ErrorShiftDecodeRawTransaction, c)
-			return
-		}
-		// 3.3 Check if address and amount match
-		var isAddressOnTx, isAmountCorrect = false, false
-		for _, vout := range transaction.Vout {
-			if vout.ScriptPubKey.Addresses[0] == Shift.PaymentAddress {
-				isAddressOnTx = true
-			}
-			amountToSat := vout.Value * 1e8
-			amountToString := fmt.Sprintf("%f", amountToSat)
-			if amountToString == Shift.PaymentAmount {
-				isAmountCorrect = true
-			}
-		}
-
-		if !isAddressOnTx || isAmountCorrect {
-			config.CaronteResponse(nil, config.ErrorShiftAmountOrAddressIncorrect, c)
-			return
-		}
-
-		// 4. Get rate
-		rate, err := s.RateService.GetCoinToCoinRates(paymentCoinData, toCoinData)
-		if err != nil {
-			config.CaronteResponse(nil, config.ErrorShiftCoinsRates, c)
-			return
-		}
-
-		paymentAmountToFloat, err := strconv.ParseFloat(Shift.PaymentAmount, 64)
-		if err != nil {
-			config.CaronteResponse(nil, config.ErrorUnableToParseStringToFloat, c)
-			return
-		}
-
-		// 5. Broadcast the transaction
-		TxID, err := s.RPCService.BroadcastTransaction(paymentCoinData, Shift.PaymentRawTx)
-		if err != nil {
-			config.CaronteResponse(nil, config.ErrorShiftFailedToBroadcast, c)
-			return
-		}
 
 		// 6. Submit Shift Element
 		shift := models.Shift{
