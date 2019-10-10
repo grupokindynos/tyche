@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -98,9 +99,10 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	var shiftData microservices.TycheReceive
 	json.Unmarshal([]byte(payloadStr), &shiftData)
 
-	fromCoin := "DASH"
-	toCoin := "BTC"
-	amount := ".0001"
+	fromCoin := "BTC"
+	toCoin := "POLIS"
+	amount := 7058
+	amountStr := fmt.Sprintf("%f", amount/1e8)
 
 	// Verify coin is on coin factory
 	_, err := coinfactory.GetCoin(fromCoin)
@@ -114,7 +116,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	}
 
 	// Get rate
-	rate, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, toCoin, amount)
+	rate, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, toCoin, amountStr)
 
 	if err != nil {
 		return rate, err
@@ -124,7 +126,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 
 	//Get address from Plutus
 	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-
+	address = "38yE9BaCgUpCawt6bWsDLcvoqcmHepdWoq"
 	//Create rate object
 	rateObject := microservices.TycheRate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
 
@@ -149,29 +151,43 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 func (s *TycheController) StoreShift(c *gin.Context) {
 	rawTX := c.Query("raw_tx")
 	token := c.Query("token")
+	//payAddress := c.Query("pay_address")
 
+	// Get data from cache
 	data, valid := s.Cache[token]
 
 	if valid != true {
 		responses.GlobalResponseError("", errors.New("token not found"), c)
 	}
 
-	transaction, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(rawTX), data.ToCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
+	// Decode Raw transaction
+	transaction, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(rawTX), data.FromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 
+	// Verify amount and address from prepared shift are the same as raw transaction
 	var isAddressOnTx, isAmountCorrect = false, false
 	for _, vout := range transaction.Vout {
 		if vout.ScriptPubKey.Addresses[0] == data.Address {
 			isAddressOnTx = true
 		}
-		//amountToSat := vout.Value * 1e8
-		fmt.Println(vout.ValueSat)
-		fmt.Println(data.Amount)
+		amountToSat := int64(math.Round(vout.Value * 1e8))
+		totalAmount := data.Amount + data.Fee
+		if amountToSat == totalAmount {
+			isAmountCorrect = true
+		}
 	}
 
-	if !isAddressOnTx || isAmountCorrect {
-		fmt.Println("Not working")
+	if isAddressOnTx == false {
+		responses.GlobalResponseError("", errors.New("no matching address in raw tx"), c)
 		return
 	}
+
+	if isAmountCorrect == false {
+		responses.GlobalResponseError("", errors.New("incorrect amount in raw tx"), c)
+		return
+	}
+
+	// Broadcast transaction
+
 	/*
 
 
