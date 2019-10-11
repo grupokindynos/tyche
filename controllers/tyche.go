@@ -24,11 +24,11 @@ import (
 
 //TycheController has the functions for handling the API endpoints
 type TycheController struct {
-	Cache map[string]tyche.Rate
+	Cache map[string]hestia.Rate
 }
 
 //WaitRate is used for storing rates on the cache
-func (s *TycheController) WaitRate(rate tyche.Rate, hashString string) {
+func (s *TycheController) WaitRate(rate hestia.Rate, hashString string) {
 	// Store hash in cache
 	s.Cache[hashString] = rate
 
@@ -56,6 +56,30 @@ func (s *TycheController) GetShiftAmount(c *gin.Context) {
 	return
 }
 
+func verifyTransaction(transaction plutus.DecodedRawTX, data hestia.Rate) error {
+	var isAddressOnTx, isAmountCorrect = false, false
+	for _, vout := range transaction.Vout {
+		if vout.ScriptPubKey.Addresses[0] == data.Address {
+			isAddressOnTx = true
+		}
+		amountToSat := int64(math.Round(vout.Value * 1e8))
+		totalAmount := data.Amount + data.Fee
+		if amountToSat == totalAmount {
+			isAmountCorrect = true
+		}
+	}
+
+	if isAddressOnTx == false {
+		return errors.New("no matching address in raw tx")
+	}
+
+	if isAmountCorrect == false {
+		return errors.New("incorrect amount in raw tx")
+	}
+
+	return nil
+}
+
 // PrepareShift prepares a shift given the coins and amount, and returns a token and a timestamp`
 func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{}, error) {
 
@@ -68,7 +92,8 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 
 	fromCoin := "BTC"
 	toCoin := "POLIS"
-	amount := 3000
+	amount := 30000
+	feeCoin := "POLIS"
 	amountStr := fmt.Sprintf("%f", amount/1e8)
 
 	// Verify coin is on coin factory
@@ -90,12 +115,19 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	}
 
 	fee := float64(amount) * .01
+	feeStr := fmt.Sprintf("%f", fee)
+	rateFee, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, feeCoin, feeStr)
+
+	finalFee := math.Round((fee / (rateFee * 1e8) * 1e8))
+	fmt.Println(finalFee)
 
 	//Get address from Plutus
 	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-	address = "38yE9BaCgUpCawt6bWsDLcvoqcmHepdWoq"
+	addressFee, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), feeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
+
+	receiveAmount := math.Round((float64(amount) / (rate * 1e8) * 1e8))
 	//Create rate object
-	rateObject := tyche.Rate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(fee), Address: address}
+	rateObject := hestia.Rate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(finalFee), Address: address, AddressFee: addressFee, FeeCoin: feeCoin, ReceiveAmount: int64(receiveAmount)}
 
 	// Generate token hashing the uid
 	h := sha256.New()
@@ -117,6 +149,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 // StoreShift validates and stores the shift on firebase
 func (s *TycheController) StoreShift(c *gin.Context) {
 	rawTX := c.Query("raw_tx")
+	feeTX := c.Query("fee_tx")
 	token := c.Query("token")
 	//payAddress := c.Query("pay_address")
 
@@ -129,28 +162,18 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 
 	// Decode Raw transaction
 	transaction, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(rawTX), data.FromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-
+	transactionFee, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(feeTX), data.FeeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	// Verify amount and address from prepared shift are the same as raw transaction
-	var isAddressOnTx, isAmountCorrect = false, false
-	for _, vout := range transaction.Vout {
-		if vout.ScriptPubKey.Addresses[0] == data.Address {
-			isAddressOnTx = true
-		}
-		amountToSat := int64(math.Round(vout.Value * 1e8))
-		totalAmount := data.Amount + data.Fee
-		if amountToSat == totalAmount {
-			isAmountCorrect = true
-		}
+
+	err := verifyTransaction(transaction, data)
+
+	if err != nil {
+		responses.GlobalResponseError("", err, c)
 	}
 
-	if isAddressOnTx == false {
-		responses.GlobalResponseError("", errors.New("no matching address in raw tx"), c)
-		return
-	}
-
-	if isAmountCorrect == false {
-		responses.GlobalResponseError("", errors.New("incorrect amount in raw tx"), c)
-		return
+	err = verifyTransaction(transactionFee, data)
+	if err != nil {
+		responses.GlobalResponseError("", err, c)
 	}
 
 	/*
@@ -182,10 +205,8 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 	}
 	shift := hestia.Shift{
 		ID:         "TEST_SHIFT",
-		UID:        "XYZ12345678910",
-		Status:     "PENDING",
-		Timestamp:  strconv.Itoa(int(time.Now().Unix())),
 		Payment:    shiftPayment,
+		UID:        "XYZ12345678910",
 		FeePayment: shiftPayment,
 		Rate:       rate,
 	}
