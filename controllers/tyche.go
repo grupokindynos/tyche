@@ -13,11 +13,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
+	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/responses"
-	"github.com/grupokindynos/models/tyche"
 	"github.com/grupokindynos/tyche/config"
+	tyche "github.com/grupokindynos/tyche/models"
+	"github.com/grupokindynos/tyche/services"
 )
 
 //TycheController has the functions for handling the API endpoints
@@ -151,43 +153,48 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 		return
 	}
 
-	// Broadcast transaction
-	coinInfo, _ := coinfactory.GetCoin(data.FromCoin)
+	/*
+		// Broadcast transaction
+		coinInfo, _ := coinfactory.GetCoin(data.FromCoin)
 
-	res, err := config.HTTPClient.Get("https://" + coinInfo.BlockchainInfo.ExternalSource + "/api/v2/sendtx/" + rawTX)
-	if err != nil {
-		responses.GlobalResponseError("", errors.New("could not broadcast transaction"), c)
+		res, err := config.HTTPClient.Get("https://" + coinInfo.BlockchainInfo.ExternalSource + "/api/v2/sendtx/" + rawTX)
+		if err != nil {
+			responses.GlobalResponseError(err, errors.New("could not broadcast transaction"), c)
+		}
+	*/
+
+	shiftPayment := hestia.Payment{
+		Address:       data.Address,
+		Amount:        data.Amount,
+		Coin:          data.FromCoin,
+		RawTx:         rawTX,
+		Txid:          transaction.Txid,
+		Confirmations: 0,
 	}
 
-	fmt.Println(res, err)
+	rate := hestia.Rate{
+		Rate:     data.Rate,
+		FromCoin: data.FromCoin,
+		ToCoin:   data.ToCoin,
+		Amount:   data.Amount,
+		Fee:      data.Fee,
+		Address:  data.Address,
+	}
+	shift := hestia.Shift{
+		ID:         "TEST_SHIFT",
+		UID:        "XYZ12345678910",
+		Status:     "PENDING",
+		Timestamp:  strconv.Itoa(int(time.Now().Unix())),
+		Payment:    shiftPayment,
+		FeePayment: shiftPayment,
+		Rate:       rate,
+	}
 
-	/*
+	_, err := services.UpdateShift(os.Getenv("HESTIA_URL"), shift)
 
-		// 6. Submit Shift Element
-		shift := models.Shift{
-			Confirmations:  0,
-			Rate:           rate,
-			ID:             s.GenNewID(),
-			Status:         "PENDING",
-			Time:           time.Now().Unix(),
-			PaymentAddress: Shift.PaymentAddress,
-			PaymentCoin:    Shift.PaymentCoin,
-			PaymentAmount:  Shift.PaymentAmount,
-			PaymentTxID:    TxID,
-			ToAddress:      Shift.ToAddress,
-			ToCoin:         Shift.ToCoin,
-			ToAmount:       math.Floor((paymentAmountToFloat/rate)*1e8) / 1e8,
-		}
+	if err != nil {
+		responses.GlobalResponseError("", errors.New("could not store shift in database"), c)
+	}
 
-		err = s.Firebase.StoreShift(shift)
-		if err != nil {
-			// If this fails, we need to notify the dev team somehow.
-			// TODO
-			config.CaronteResponse(nil, config.ErrorShiftFailedToStore, c)
-			return
-		}
-
-		config.CaronteResponse(shift.ID, nil, c)
-	*/
-	return
+	responses.GlobalResponseError("Success", nil, c)
 }

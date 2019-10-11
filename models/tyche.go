@@ -1,11 +1,11 @@
 package tyche
 
-//TycheBalance is the model for the GetBalance endpoint
+//Balance is the model for the GetBalance endpoint
 type Balance struct {
 	Balance string `json:"balance"`
 }
 
-//TycheRate is the model for storing rates in the cache
+//Rate is the model for storing rates in the cache
 type Rate struct {
 	Rate     float64 `json:"rate"`
 	FromCoin string  `json:"fromcoin"`
@@ -15,7 +15,7 @@ type Rate struct {
 	Address  string  `json:"address"`
 }
 
-//TychePrepare is the model for the response of the prepare endpoint
+//Prepare is the model for the response of the prepare endpoint
 type Prepare struct {
 	Token     string `json:"token"`
 	Timestamp int64  `json:"timestamp"`
@@ -26,6 +26,22 @@ type Prepare struct {
 type Shift struct {
 	Token          string `json:"token"`
 	RawTransaction string `json:"raw_tx"`
+}
+
+//HestiaShift is the shift model that gets stored in the database
+type HestiaShift struct {
+	Confirmations  int `json:"rate"`
+	Rate           float64
+	ID             string
+	Status         string
+	Time           int
+	PaymentAddress string
+	PaymentCoin    string
+	PaymentAmount  int64
+	PaymentTXID    string
+	ToAddress      string
+	ToCoin         string
+	ToAmount       int64
 }
 
 //TycheReceive is the object that Tyche receives from frontend

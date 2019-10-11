@@ -10,7 +10,8 @@ import (
 	"github.com/grupokindynos/common/responses"
 	"github.com/grupokindynos/common/tokens/ppat"
 	"github.com/grupokindynos/tyche/controllers"
-	"github.com/grupokindynos/tyche/models/tyche"
+
+	tyche "github.com/grupokindynos/tyche/models"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"
