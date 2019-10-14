@@ -91,8 +91,8 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	json.Unmarshal([]byte(payloadStr), &shiftData)
 
 	fromCoin := "BTC"
-	toCoin := "POLIS"
-	amount := 30000
+	toCoin := "DASH"
+	amount := 1e8
 	feeCoin := "POLIS"
 	amountStr := fmt.Sprintf("%f", amount/1e8)
 
@@ -114,18 +114,18 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 		return rate, err
 	}
 
-	fee := float64(amount) * .01
+	// Calculate fee
+	fee := float64(amount) * .01 / 1e8
 	feeStr := fmt.Sprintf("%f", fee)
 	rateFee, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, feeCoin, feeStr)
 
-	finalFee := math.Round((fee / (rateFee * 1e8) * 1e8))
-	fmt.Println(finalFee)
+	finalFee := math.Round((fee / (rateFee))) * 1e8
 
 	//Get address from Plutus
 	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	addressFee, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), feeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 
-	receiveAmount := math.Round((float64(amount) / (rate * 1e8) * 1e8))
+	receiveAmount := math.Round(float64(amount) / rate)
 	//Create rate object
 	rateObject := hestia.Rate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(finalFee), Address: address, AddressFee: addressFee, FeeCoin: feeCoin, ReceiveAmount: int64(receiveAmount)}
 
@@ -211,7 +211,7 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 		Rate:       rate,
 	}
 
-	_, err := services.UpdateShift(os.Getenv("HESTIA_URL"), shift)
+	_, err = services.UpdateShift(os.Getenv("HESTIA_URL"), shift)
 
 	if err != nil {
 		responses.GlobalResponseError("", errors.New("could not store shift in database"), c)
