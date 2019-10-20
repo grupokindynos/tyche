@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/common/jwt"
 	"math"
 	"os"
 	"strconv"
@@ -25,6 +26,14 @@ import (
 //TycheController has the functions for handling the API endpoints
 type TycheController struct {
 	Cache map[string]hestia.Rate
+}
+
+func (s *TycheController) GetServiceStatus(uid string, payload []byte) (interface{}, error) {
+	status, err := services.GetServicesStatus()
+	if err != nil {
+		return nil, err
+	}
+	return jwt.EncryptJWE(uid, status.Shift)
 }
 
 //WaitRate is used for storing rates on the cache
@@ -211,7 +220,7 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 		Rate:       rate,
 	}
 
-	_, err = services.UpdateShift(os.Getenv("HESTIA_URL"), shift)
+	_, err = services.UpdateShift(shift)
 
 	if err != nil {
 		responses.GlobalResponseError("", errors.New("could not store shift in database"), c)
