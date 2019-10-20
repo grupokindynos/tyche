@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -69,6 +70,7 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte) (in
 		return
 	}
 	tokenBytes, _ := c.GetRawData()
+	fmt.Println(string(tokenBytes))
 	var ReqBody hestia.BodyReq
 	if len(tokenBytes) > 0 {
 		err := json.Unmarshal(tokenBytes, &ReqBody)
@@ -77,7 +79,7 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte) (in
 			return
 		}
 	}
-	valid, payload, uid, err := ppat.VerifyPPATToken("https://hestia.polispay.com", "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
+	valid, payload, uid, err := ppat.VerifyPPATToken(os.Getenv("HESTIA_URL"), "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
 	if !valid {
 		responses.GlobalResponseNoAuth(c)
 		return

@@ -14,7 +14,7 @@ import (
 	"github.com/grupokindynos/tyche/config"
 )
 
-var HestiaURL = "http://hestia.polispay.com"
+var HestiaURL = os.Getenv("HESTIA_URL")
 
 func GetServicesStatus() (hestia.Config, error) {
 	req, err := mvt.CreateMVTToken("GET", HestiaURL+"/config", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))

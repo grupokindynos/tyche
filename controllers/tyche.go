@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/grupokindynos/common/jwt"
 	"math"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/grupokindynos/common/jwt"
 
 	"github.com/gin-gonic/gin"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
@@ -100,7 +101,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	json.Unmarshal([]byte(payloadStr), &shiftData)
 
 	fromCoin := "BTC"
-	toCoin := "DASH"
+	toCoin := "POLIS"
 	amount := 1e8
 	feeCoin := "POLIS"
 	amountStr := fmt.Sprintf("%f", amount/1e8)
