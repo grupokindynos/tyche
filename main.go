@@ -50,6 +50,7 @@ func ApplyRoutes(r *gin.Engine) {
 
 		tycheCtrl := controllers.TycheController{Cache: cache}
 
+		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.GetServiceStatus) })
 		api.GET("balance/:coin", tycheCtrl.GetShiftAmount)
 		api.POST("prepare/", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareShift) })
 		api.POST("new", tycheCtrl.StoreShift)
@@ -63,25 +64,25 @@ func ApplyRoutes(r *gin.Engine) {
 //ValidateRequest validates that the token sent from the frontend is valid
 func ValidateRequest(c *gin.Context, method func(uid string, payload []byte) (interface{}, error)) {
 	fbToken := c.GetHeader("token")
-
 	if fbToken == "" {
 		responses.GlobalResponseNoAuth(c)
 		return
 	}
 	tokenBytes, _ := c.GetRawData()
-
-	var tokenStr string
-	json.Unmarshal(tokenBytes, &tokenStr)
-
-	valid, payload, uid, err := ppat.VerifyPPATToken(os.Getenv("HESTIA_URL"), "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, tokenStr, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
-
+	var ReqBody hestia.BodyReq
+	if len(tokenBytes) > 0 {
+		err := json.Unmarshal(tokenBytes, &ReqBody)
+		if err != nil {
+			responses.GlobalResponseError(nil, err, c)
+			return
+		}
+	}
+	valid, payload, uid, err := ppat.VerifyPPATToken("https://hestia.polispay.com", "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
 	if !valid {
 		responses.GlobalResponseNoAuth(c)
 		return
 	}
-
 	response, err := method(uid, payload)
-
 	responses.GlobalResponseError(response, err, c)
 	return
 }
