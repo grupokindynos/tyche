@@ -26,7 +26,7 @@ import (
 
 //TycheController has the functions for handling the API endpoints
 type TycheController struct {
-	Cache map[string]hestia.Rate
+	Cache map[string]hestia.ShiftRate
 }
 
 func (s *TycheController) GetServiceStatus(uid string, payload []byte) (interface{}, error) {
@@ -38,7 +38,7 @@ func (s *TycheController) GetServiceStatus(uid string, payload []byte) (interfac
 }
 
 //WaitRate is used for storing rates on the cache
-func (s *TycheController) WaitRate(rate hestia.Rate, hashString string) {
+func (s *TycheController) WaitRate(rate hestia.ShiftRate, hashString string) {
 	// Store hash in cache
 	s.Cache[hashString] = rate
 
@@ -66,14 +66,14 @@ func (s *TycheController) GetShiftAmount(c *gin.Context) {
 	return
 }
 
-func verifyTransaction(transaction plutus.DecodedRawTX, data hestia.Rate) error {
+func verifyTransaction(transaction plutus.DecodedRawTX, data hestia.ShiftRate) error {
 	var isAddressOnTx, isAmountCorrect = false, false
 	for _, vout := range transaction.Vout {
-		if vout.ScriptPubKey.Addresses[0] == data.Address {
+		if vout.ScriptPubKey.Addresses[0] == data.ToAddress {
 			isAddressOnTx = true
 		}
 		amountToSat := int64(math.Round(vout.Value * 1e8))
-		totalAmount := data.Amount + data.Fee
+		totalAmount := data.ToAmount + data.FeeAmount
 		if amountToSat == totalAmount {
 			isAmountCorrect = true
 		}
@@ -100,10 +100,10 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	var shiftData tyche.Receive
 	json.Unmarshal([]byte(payloadStr), &shiftData)
 
-	fromCoin := "BTC"
-	toCoin := "POLIS"
-	amount := 1e8
-	feeCoin := "POLIS"
+	fromCoin := "POLIS"
+	toCoin := "BTC"
+	amount := 1e8 * 200
+	feeCoin := "DASH"
 	amountStr := fmt.Sprintf("%f", amount/1e8)
 
 	// Verify coin is on coin factory
@@ -124,20 +124,31 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 		return rate, err
 	}
 
-	// Calculate fee
-	fee := float64(amount) * .01 / 1e8
-	feeStr := fmt.Sprintf("%f", fee)
-	rateFee, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, feeCoin, feeStr)
+	// Calculate receive amount
+	receiveAmount := math.Round(float64(amount) / rate)
 
-	finalFee := math.Round((fee / (rateFee))) * 1e8
+	// Calculate fee
+	fee := float64(receiveAmount) * .01 / 1e8
+	feeStr := fmt.Sprintf("%f", fee)
+	var rateFee, finalFee float64
+
+	if toCoin != feeCoin {
+		rateFee, err = obol.GetCoin2CoinRatesWithAmmount(toCoin, feeCoin, feeStr)
+		finalFee = (fee / rateFee) * 1e8
+	} else if fromCoin != feeCoin {
+		finalFee = fee * 1e8
+	}
+
+	if err != nil {
+		return rateFee, err
+	}
 
 	//Get address from Plutus
 	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	addressFee, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), feeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 
-	receiveAmount := math.Round(float64(amount) / rate)
 	//Create rate object
-	rateObject := hestia.Rate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(finalFee), Address: address, AddressFee: addressFee, FeeCoin: feeCoin, ReceiveAmount: int64(receiveAmount)}
+	rateObject := hestia.ShiftRate{Rate: rate, FromAmount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, FeeAmount: int64(finalFee), ToAddress: address, FeeAddress: addressFee, FeeCoin: feeCoin, ToAmount: int64(receiveAmount)}
 
 	// Generate token hashing the uid
 	h := sha256.New()
@@ -197,21 +208,21 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 	*/
 
 	shiftPayment := hestia.Payment{
-		Address:       data.Address,
-		Amount:        data.Amount,
+		Address:       data.ToAddress,
+		Amount:        data.ToAmount,
 		Coin:          data.FromCoin,
 		RawTx:         rawTX,
 		Txid:          transaction.Txid,
 		Confirmations: 0,
 	}
 
-	rate := hestia.Rate{
-		Rate:     data.Rate,
-		FromCoin: data.FromCoin,
-		ToCoin:   data.ToCoin,
-		Amount:   data.Amount,
-		Fee:      data.Fee,
-		Address:  data.Address,
+	rate := hestia.ShiftRate{
+		Rate:       data.Rate,
+		FromCoin:   data.FromCoin,
+		ToCoin:     data.ToCoin,
+		FromAmount: data.FromAmount,
+		FeeAmount:  data.FeeAmount,
+		ToAddress:  data.ToAddress,
 	}
 	shift := hestia.Shift{
 		ID:         "TEST_SHIFT",

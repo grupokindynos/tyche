@@ -9,9 +9,9 @@ type Balance struct {
 
 //Prepare is the model for the response of the prepare endpoint
 type Prepare struct {
-	Token     string      `json:"token"`
-	Timestamp int64       `json:"timestamp"`
-	Rate      hestia.Rate `json:"rate"`
+	Token     string           `json:"token"`
+	Timestamp int64            `json:"timestamp"`
+	Rate      hestia.ShiftRate `json:"rate"`
 }
 
 //Shift is the model for the response of the prepare endpoint

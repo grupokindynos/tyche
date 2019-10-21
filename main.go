@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -47,7 +46,7 @@ func ApplyRoutes(r *gin.Engine) {
 	api := r.Group("/")
 	{
 
-		var cache = map[string]hestia.Rate{}
+		var cache = map[string]hestia.ShiftRate{}
 
 		tycheCtrl := controllers.TycheController{Cache: cache}
 
@@ -70,7 +69,6 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte) (in
 		return
 	}
 	tokenBytes, _ := c.GetRawData()
-	fmt.Println(string(tokenBytes))
 	var ReqBody hestia.BodyReq
 	if len(tokenBytes) > 0 {
 		err := json.Unmarshal(tokenBytes, &ReqBody)
