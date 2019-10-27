@@ -53,6 +53,7 @@ github.com/grupokindynos/common v0.0.0-20191011174058-e51f5f9e18f2 h1:60ZlnML0rB
 github.com/grupokindynos/common v0.0.0-20191011174058-e51f5f9e18f2/go.mod h1:GUdrFqqFWFaecQtHAuQQdS0elR2mqHJAClBW98GIFzI=
 github.com/grupokindynos/common v0.0.0-20191021000636-b40d0476e1f8 h1:BNUtF5NZInUTxTo0g7IhLDCa+CjW+zD1imeL/+nvlsA=
 github.com/grupokindynos/common v0.0.0-20191021000636-b40d0476e1f8/go.mod h1:GUdrFqqFWFaecQtHAuQQdS0elR2mqHJAClBW98GIFzI=
+github.com/grupokindynos/common v0.0.0-20191024151341-1175d21005b4 h1:O7Iz8v4XZ+25J1dEnfFDAKukixzdLkqbZkJ/CGvZxhk=
 github.com/heroku/heroku-go/v5 v5.1.0/go.mod h1:d+1QrZyjbnQJG1f8xIoVvMQRFLt3XRVZOdlm26Sr73U=
 github.com/heroku/x v0.0.1 h1:SF/19OoRU28VbFnk7PE4ufX8zbqMWvnm3zkTtlsB3M0=
 github.com/heroku/x v0.0.1/go.mod h1:DMrW71ANm+83z4O90qbXedG3ZeRnOj/thqjFWSnTZZQ=

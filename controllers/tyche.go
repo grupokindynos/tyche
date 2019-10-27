@@ -19,6 +19,7 @@ import (
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/responses"
+	"github.com/grupokindynos/common/utils"
 	"github.com/grupokindynos/tyche/config"
 	tyche "github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/services"
@@ -89,6 +90,18 @@ func verifyTransaction(transaction plutus.DecodedRawTX, toAddress string, amount
 	}
 
 	return nil
+}
+
+func broadcastTX(coin string, rawTX string) {
+	// Broadcast transaction
+	coinInfo, _ := coinfactory.GetCoin(coin)
+
+	res, err := config.HTTPClient.Get("https://" + coinInfo.BlockchainInfo.ExternalSource + "/api/v2/sendtx/" + rawTX)
+	if err != nil {
+		fmt.Println(res)
+	}
+
+	fmt.Println(res)
 }
 
 // PrepareShift prepares a shift given the coins and amount, and returns a token and a timestamp`
@@ -178,6 +191,7 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 	rawTX := c.Query("raw_tx")
 	feeTX := c.Query("fee_tx")
 	token := c.Query("token")
+	uid := c.Query("uid")
 
 	// Get data from cache
 	data, valid := s.Cache[token]
@@ -221,20 +235,14 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 		Confirmations: 0,
 	}
 
-	rate := hestia.ShiftRate{
-		Rate:       data.Rate,
-		FromCoin:   data.FromCoin,
-		ToCoin:     data.ToCoin,
-		FromAmount: data.FromAmount,
-		FeeAmount:  data.FeeAmount,
-		ToAddress:  data.ToAddress,
-	}
 	shift := hestia.Shift{
-		ID:         "TEST_SHIFT",
+		ID:         utils.RandomString(),
 		Payment:    shiftPayment,
-		UID:        "XYZ12345678910",
+		Status:     "PENDING",
+		Timestamp:  strconv.Itoa(int(time.Now().Unix())),
+		UID:        uid,
 		FeePayment: shiftPayment,
-		Rate:       rate,
+		Rate:       data,
 	}
 
 	_, err = services.UpdateShift(shift)

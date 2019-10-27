@@ -14,10 +14,9 @@ import (
 	"github.com/grupokindynos/tyche/config"
 )
 
-var HestiaURL = os.Getenv("HESTIA_URL")
-
+//GetSer
 func GetServicesStatus() (hestia.Config, error) {
-	req, err := mvt.CreateMVTToken("GET", HestiaURL+"/config", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", os.Getenv("HESTIA_URL")+"/config", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return hestia.Config{}, err
 	}
@@ -56,18 +55,17 @@ func GetServicesStatus() (hestia.Config, error) {
 
 //UpdateShift stores a shift in the database
 func UpdateShift(shiftData hestia.Shift) (string, error) {
-
-	req, err := mvt.CreateMVTToken("POST", HestiaURL+"/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("POST", os.Getenv("HESTIA_URL")+"/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 
 	if err != nil {
 		return "", err
 	}
 	res, err := config.HTTPClient.Do(req)
-
 	if err != nil {
 		return "", err
 	}
 	defer res.Body.Close()
+
 	tokenResponse, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return "", err
@@ -87,5 +85,6 @@ func UpdateShift(shiftData hestia.Shift) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return response, nil
 }
