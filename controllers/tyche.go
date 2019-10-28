@@ -131,7 +131,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	}
 
 	// Get rate
-	rate, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, toCoin, amountStr)
+	rate, err := obol.GetCoin2CoinRatesWithAmmount(os.Getenv("OBOL_URL"), fromCoin, toCoin, amountStr)
 
 	if err != nil {
 		return rate, err
@@ -146,7 +146,7 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	var rateFee, finalFee float64
 
 	if toCoin != feeCoin {
-		rateFee, err = obol.GetCoin2CoinRatesWithAmmount(toCoin, feeCoin, feeStr)
+		rateFee, err = obol.GetCoin2CoinRatesWithAmmount(os.Getenv("OBOL_URL"), toCoin, feeCoin, feeStr)
 		finalFee = (fee / rateFee) * 1e8
 	} else if fromCoin != feeCoin {
 		finalFee = fee * 1e8
@@ -248,11 +248,12 @@ func (s *TycheController) StoreShift(uid string, payload []byte) (interface{}, e
 	shift := hestia.Shift{
 		ID:         utils.RandomString(),
 		Payment:    shiftPayment,
-		Status:     "PENDING",
+		Status:     0,
 		Timestamp:  strconv.Itoa(int(time.Now().Unix())),
 		UID:        uid,
 		FeePayment: feePayment,
 		Rate:       data,
+		PayAddress: shiftData.PayAddress,
 	}
 
 	_, err = services.UpdateShift(shift)

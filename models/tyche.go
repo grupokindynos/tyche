@@ -30,7 +30,8 @@ type Receive struct {
 
 //NewShift is the model for new Shifts
 type NewShift struct {
-	RawTX string `json:"raw_tx"`
-	FeeTX string `json:"fee_tx"`
-	Token string  `json:"token"`
+	RawTX      string `json:"raw_tx"`
+	FeeTX      string `json:"fee_tx"`
+	Token      string `json:"token"`
+	PayAddress string `json:"pay_address"`
 }
