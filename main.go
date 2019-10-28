@@ -48,14 +48,14 @@ func ApplyRoutes(r *gin.Engine) {
 	api := r.Group("/")
 	{
 
-		var cache = map[string]hestia.Rate{}
+		var cache = map[string]hestia.ShiftRate{}
 
 		tycheCtrl := controllers.TycheController{Cache: cache}
 
 		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.GetServiceStatus) })
 		api.GET("balance/:coin", tycheCtrl.GetShiftAmount)
 		api.POST("prepare/", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareShift) })
-		api.POST("new", tycheCtrl.StoreShift)
+		api.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreShift) })
 
 	}
 	r.NoRoute(func(c *gin.Context) {
@@ -79,7 +79,7 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte) (in
 			return
 		}
 	}
-	valid, payload, uid, err := ppat.VerifyPPATToken("https://hestia.polispay.com", "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
+	valid, payload, uid, err := ppat.VerifyPPATToken(os.Getenv("HESTIA_URL"), "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
 	if !valid {
 		responses.GlobalResponseNoAuth(c)
 		return

@@ -6,18 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/grupokindynos/common/jwt"
 	"math"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/grupokindynos/common/jwt"
 
 	"github.com/gin-gonic/gin"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/plutus"
-	"github.com/grupokindynos/common/responses"
+	"github.com/grupokindynos/common/utils"
 	"github.com/grupokindynos/tyche/config"
 	tyche "github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/services"
@@ -25,9 +26,10 @@ import (
 
 //TycheController has the functions for handling the API endpoints
 type TycheController struct {
-	Cache map[string]hestia.Rate
+	Cache map[string]hestia.ShiftRate
 }
 
+//GetServiceStatus gets if the shift service is active
 func (s *TycheController) GetServiceStatus(uid string, payload []byte) (interface{}, error) {
 	status, err := services.GetServicesStatus()
 	if err != nil {
@@ -37,7 +39,7 @@ func (s *TycheController) GetServiceStatus(uid string, payload []byte) (interfac
 }
 
 //WaitRate is used for storing rates on the cache
-func (s *TycheController) WaitRate(rate hestia.Rate, hashString string) {
+func (s *TycheController) WaitRate(rate hestia.ShiftRate, hashString string) {
 	// Store hash in cache
 	s.Cache[hashString] = rate
 
@@ -65,14 +67,14 @@ func (s *TycheController) GetShiftAmount(c *gin.Context) {
 	return
 }
 
-func verifyTransaction(transaction plutus.DecodedRawTX, data hestia.Rate) error {
+func verifyTransaction(transaction plutus.DecodedRawTX, toAddress string, amount int64) error {
 	var isAddressOnTx, isAmountCorrect = false, false
 	for _, vout := range transaction.Vout {
-		if vout.ScriptPubKey.Addresses[0] == data.Address {
+		if vout.ScriptPubKey.Addresses[0] == toAddress {
 			isAddressOnTx = true
 		}
 		amountToSat := int64(math.Round(vout.Value * 1e8))
-		totalAmount := data.Amount + data.Fee
+		totalAmount := amount
 		if amountToSat == totalAmount {
 			isAmountCorrect = true
 		}
@@ -89,6 +91,18 @@ func verifyTransaction(transaction plutus.DecodedRawTX, data hestia.Rate) error 
 	return nil
 }
 
+func broadcastTX(coin string, rawTX string) (interface{}, error) {
+	// Broadcast transaction
+	coinInfo, _ := coinfactory.GetCoin(coin)
+
+	res, err := config.HTTPClient.Get("https://" + coinInfo.BlockchainInfo.ExternalSource + "/api/v2/sendtx/" + rawTX)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, err
+}
+
 // PrepareShift prepares a shift given the coins and amount, and returns a token and a timestamp`
 func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{}, error) {
 
@@ -99,10 +113,10 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	var shiftData tyche.Receive
 	json.Unmarshal([]byte(payloadStr), &shiftData)
 
-	fromCoin := "BTC"
-	toCoin := "DASH"
-	amount := 1e8
-	feeCoin := "POLIS"
+	fromCoin := shiftData.FromCoin
+	toCoin := shiftData.ToCoin
+	amount := shiftData.Amount
+	feeCoin := shiftData.FeeCoin
 	amountStr := fmt.Sprintf("%f", amount/1e8)
 
 	// Verify coin is on coin factory
@@ -123,20 +137,31 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 		return rate, err
 	}
 
-	// Calculate fee
-	fee := float64(amount) * .01 / 1e8
-	feeStr := fmt.Sprintf("%f", fee)
-	rateFee, err := obol.GetCoin2CoinRatesWithAmmount(fromCoin, feeCoin, feeStr)
+	// Calculate receive amount
+	receiveAmount := math.Round(float64(amount) / rate)
 
-	finalFee := math.Round((fee / (rateFee))) * 1e8
+	// Calculate fee
+	fee := float64(receiveAmount) * .01 / 1e8
+	feeStr := fmt.Sprintf("%f", fee)
+	var rateFee, finalFee float64
+
+	if toCoin != feeCoin {
+		rateFee, err = obol.GetCoin2CoinRatesWithAmmount(toCoin, feeCoin, feeStr)
+		finalFee = (fee / rateFee) * 1e8
+	} else if fromCoin != feeCoin {
+		finalFee = fee * 1e8
+	}
+
+	if err != nil {
+		return rateFee, err
+	}
 
 	//Get address from Plutus
 	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	addressFee, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), feeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 
-	receiveAmount := math.Round(float64(amount) / rate)
 	//Create rate object
-	rateObject := hestia.Rate{Rate: rate, Amount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, Fee: int64(finalFee), Address: address, AddressFee: addressFee, FeeCoin: feeCoin, ReceiveAmount: int64(receiveAmount)}
+	rateObject := hestia.ShiftRate{Rate: rate, FromAmount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, FeeAmount: int64(finalFee), ToAddress: address, FeeAddress: addressFee, FeeCoin: feeCoin, ToAmount: int64(receiveAmount)}
 
 	// Generate token hashing the uid
 	h := sha256.New()
@@ -156,17 +181,21 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 }
 
 // StoreShift validates and stores the shift on firebase
-func (s *TycheController) StoreShift(c *gin.Context) {
-	rawTX := c.Query("raw_tx")
-	feeTX := c.Query("fee_tx")
-	token := c.Query("token")
-	//payAddress := c.Query("pay_address")
+func (s *TycheController) StoreShift(uid string, payload []byte) (interface{}, error) {
+	var payloadStr string
+	json.Unmarshal(payload, &payloadStr)
+
+	var shiftData tyche.NewShift
+	json.Unmarshal([]byte(payloadStr), &shiftData)
+	rawTX := shiftData.RawTX
+	feeTX := shiftData.FeeTX
+	token := shiftData.Token
 
 	// Get data from cache
 	data, valid := s.Cache[token]
 
 	if valid != true {
-		responses.GlobalResponseError("", errors.New("token not found"), c)
+		return data, errors.New("token not found")
 	}
 
 	// Decode Raw transaction
@@ -174,57 +203,63 @@ func (s *TycheController) StoreShift(c *gin.Context) {
 	transactionFee, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(feeTX), data.FeeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	// Verify amount and address from prepared shift are the same as raw transaction
 
-	err := verifyTransaction(transaction, data)
+	err := verifyTransaction(transactionFee, data.FeeAddress, data.FeeAmount)
 
 	if err != nil {
-		responses.GlobalResponseError("", err, c)
+		return "", err
 	}
 
-	err = verifyTransaction(transactionFee, data)
+	err = verifyTransaction(transaction, data.ToAddress, data.FromAmount)
 	if err != nil {
-		responses.GlobalResponseError("", err, c)
+		return "", err
 	}
 
-	/*
-		// Broadcast transaction
-		coinInfo, _ := coinfactory.GetCoin(data.FromCoin)
+	// Broadcast transaction Fee
+	_, err = broadcastTX(data.FeeCoin, feeTX)
 
-		res, err := config.HTTPClient.Get("https://" + coinInfo.BlockchainInfo.ExternalSource + "/api/v2/sendtx/" + rawTX)
-		if err != nil {
-			responses.GlobalResponseError(err, errors.New("could not broadcast transaction"), c)
-		}
-	*/
+	if err != nil {
+		return "could not broadcast TX fee", err
+	}
+
+	// Broadcast transaction
+	_, err = broadcastTX(data.FromCoin, rawTX)
+	if err != nil {
+		return "could not broadcast TX from", err
+	}
 
 	shiftPayment := hestia.Payment{
-		Address:       data.Address,
-		Amount:        data.Amount,
+		Address:       data.ToAddress,
+		Amount:        data.ToAmount,
 		Coin:          data.FromCoin,
 		RawTx:         rawTX,
 		Txid:          transaction.Txid,
 		Confirmations: 0,
 	}
 
-	rate := hestia.Rate{
-		Rate:     data.Rate,
-		FromCoin: data.FromCoin,
-		ToCoin:   data.ToCoin,
-		Amount:   data.Amount,
-		Fee:      data.Fee,
-		Address:  data.Address,
+	feePayment := hestia.Payment{
+		Address:       data.FeeAddress,
+		Amount:        data.FeeAmount,
+		Coin:          data.FeeCoin,
+		RawTx:         feeTX,
+		Txid:          transactionFee.Txid,
+		Confirmations: 0,
 	}
+
 	shift := hestia.Shift{
-		ID:         "TEST_SHIFT",
+		ID:         utils.RandomString(),
 		Payment:    shiftPayment,
-		UID:        "XYZ12345678910",
-		FeePayment: shiftPayment,
-		Rate:       rate,
+		Status:     "PENDING",
+		Timestamp:  strconv.Itoa(int(time.Now().Unix())),
+		UID:        uid,
+		FeePayment: feePayment,
+		Rate:       data,
 	}
 
 	_, err = services.UpdateShift(shift)
 
 	if err != nil {
-		responses.GlobalResponseError("", errors.New("could not store shift in database"), c)
+		return "", errors.New("could not store shift in database")
 	}
 
-	responses.GlobalResponseError("Success", nil, c)
+	return "Success", nil
 }
