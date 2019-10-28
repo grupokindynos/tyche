@@ -35,10 +35,12 @@ func main() {
 //GetApp initializes gin API library
 func GetApp() *gin.Engine {
 	App := gin.Default()
-	App.Use(cors.Default())
+	corsConf := cors.DefaultConfig()
+	corsConf.AllowAllOrigins = true
+	corsConf.AllowHeaders = []string{"token", "service", "content-type"}
+	App.Use(cors.New(corsConf))
 	ApplyRoutes(App)
 	return App
-
 }
 
 //ApplyRoutes applies the API routes to their controllers
