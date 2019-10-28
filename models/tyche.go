@@ -27,3 +27,10 @@ type Receive struct {
 	Amount   int64  `json:"amount"`
 	FeeCoin  string `json:"feecoin"`
 }
+
+//NewShift is the model for new Shifts
+type NewShift struct {
+	RawTX string `json:"raw_tx"`
+	FeeTX string `json:"fee_tx"`
+	Token string  `json:"token"`
+}

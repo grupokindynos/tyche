@@ -53,7 +53,7 @@ func ApplyRoutes(r *gin.Engine) {
 		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.GetServiceStatus) })
 		api.GET("balance/:coin", tycheCtrl.GetShiftAmount)
 		api.POST("prepare/", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareShift) })
-		api.POST("new", tycheCtrl.StoreShift)
+		api.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreShift) })
 
 	}
 	r.NoRoute(func(c *gin.Context) {
