@@ -175,9 +175,9 @@ func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{},
 	// Store token in cache
 	go s.WaitRate(rateObject, hashString)
 
-	// token, err := jwt.EncryptJWE(uid, responseObject)
+	token, err := jwt.EncryptJWE(uid, responseObject)
 
-	return responseObject, err
+	return token, err
 }
 
 // StoreShift validates and stores the shift on firebase
