@@ -1,37 +1,48 @@
-package tyche
+package models
 
-import "github.com/grupokindynos/common/hestia"
+type Params struct {
+	Coin string
+}
 
-//Balance is the model for the GetBalance endpoint
 type Balance struct {
 	Balance string `json:"balance"`
 }
 
-//Prepare is the model for the response of the prepare endpoint
-type Prepare struct {
-	Token     string           `json:"token"`
-	Timestamp int64            `json:"timestamp"`
-	Rate      hestia.ShiftRate `json:"rate"`
-}
-
-//Shift is the model for the response of the prepare endpoint
 type Shift struct {
 	Token          string `json:"token"`
 	RawTransaction string `json:"raw_tx"`
 }
 
-//Receive is the object that Tyche receives from frontend
-type Receive struct {
-	FromCoin string `json:"fromcoin"`
-	ToCoin   string `json:"tocoin"`
-	Amount   int64  `json:"amount"`
-	FeeCoin  string `json:"feecoin"`
+type PrepareShiftRequest struct {
+	FromCoin  string `json:"from_coin"`
+	Amount    int64  `json:"amount"`
+	ToCoin    string `json:"to_coin"`
+	ToAddress string `json:"to_address"`
 }
 
-//NewShift is the model for new Shifts
-type NewShift struct {
-	RawTX      string `json:"raw_tx"`
-	FeeTX      string `json:"fee_tx"`
-	Token      string `json:"token"`
-	PayAddress string `json:"pay_address"`
+type PrepareShiftResponse struct {
+	Payment        PaymentInfo `json:"payment"`
+	Fee            PaymentInfo `json:"fee"`
+	ReceivedAmount int64       `json:"received_amount"`
+}
+
+type PrepareShiftInfo struct {
+	ID         string      `json:"id"`
+	FromCoin   string      `json:"from_coin"`
+	Payment    PaymentInfo `json:"payment"`
+	FeePayment PaymentInfo `json:"fee_payment"`
+	ToCoin     string      `json:"to_coin"`
+	ToAddress  string      `json:"to_address"`
+	ToAmount   int64       `json:"to_amount"`
+	Timestamp  int64       `json:"timestamp"`
+}
+
+type PaymentInfo struct {
+	Address string `json:"address"`
+	Amount  int64  `json:"amount"`
+}
+
+type StoreShift struct {
+	RawTX string `json:"raw_tx"`
+	FeeTX string `json:"fee_tx"`
 }

@@ -2,8 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/grupokindynos/common/jwt"
+	"github.com/grupokindynos/tyche/models"
+	"github.com/grupokindynos/tyche/processor"
+	"log"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -21,18 +27,36 @@ func init() {
 
 }
 
-func main() {
+type CurrentTime struct {
+	Hour   int
+	Day    int
+	Minute int
+	Second int
+}
 
+var (
+	currTime         CurrentTime
+	prepareShiftsMap = make(map[string]models.PrepareShiftInfo)
+)
+
+const prepareShiftTimeframe = 60 * 5 // 5 minutes
+
+func main() {
+	currTime = CurrentTime{
+		Hour:   time.Now().Hour(),
+		Day:    time.Now().Day(),
+		Minute: time.Now().Minute(),
+		Second: time.Now().Second(),
+	}
+	//go timer()
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 	App := GetApp()
 	_ = App.Run(":" + port)
-
 }
 
-//GetApp initializes gin API library
 func GetApp() *gin.Engine {
 	App := gin.Default()
 	corsConf := cors.DefaultConfig()
@@ -43,19 +67,15 @@ func GetApp() *gin.Engine {
 	return App
 }
 
-//ApplyRoutes applies the API routes to their controllers
 func ApplyRoutes(r *gin.Engine) {
+	tycheCtrl := &controllers.TycheController{PrepareShifts: prepareShiftsMap}
+	go checkAndRemoveShifts(tycheCtrl)
 	api := r.Group("/")
 	{
-
-		var cache = map[string]hestia.ShiftRate{}
-
-		tycheCtrl := controllers.TycheController{Cache: cache}
-
-		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.GetServiceStatus) })
-		api.GET("balance/:coin", tycheCtrl.GetShiftAmount)
-		api.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareShift) })
-		api.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreShift) })
+		api.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Balance) })
+		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Status) })
+		api.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Prepare) })
+		api.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Store) })
 
 	}
 	r.NoRoute(func(c *gin.Context) {
@@ -63,12 +83,14 @@ func ApplyRoutes(r *gin.Engine) {
 	})
 }
 
-//ValidateRequest validates that the token sent from the frontend is valid
-func ValidateRequest(c *gin.Context, method func(uid string, payload []byte) (interface{}, error)) {
+func ValidateRequest(c *gin.Context, method func(uid string, payload []byte, params models.Params) (interface{}, error)) {
 	fbToken := c.GetHeader("token")
 	if fbToken == "" {
 		responses.GlobalResponseNoAuth(c)
 		return
+	}
+	params := models.Params{
+		Coin: c.Param("coin"),
 	}
 	tokenBytes, _ := c.GetRawData()
 	var ReqBody hestia.BodyReq
@@ -79,12 +101,73 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte) (in
 			return
 		}
 	}
-	valid, payload, uid, err := ppat.VerifyPPATToken(os.Getenv("HESTIA_URL"), "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
+	valid, payload, uid, err := ppat.VerifyPPATToken(hestia.ProductionURL, "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
 	if !valid {
 		responses.GlobalResponseNoAuth(c)
 		return
 	}
-	response, err := method(uid, payload)
-	responses.GlobalResponseError(response, err, c)
+	response, err := method(uid, payload, params)
+	if err != nil {
+		responses.GlobalResponseError(nil, err, c)
+		return
+	}
+	token, err := jwt.EncryptJWE(uid, response)
+	responses.GlobalResponseError(token, err, c)
 	return
+}
+
+func timer() {
+	for {
+		time.Sleep(1 * time.Second)
+		currTime = CurrentTime{
+			Hour:   time.Now().Hour(),
+			Day:    time.Now().Day(),
+			Minute: time.Now().Minute(),
+			Second: time.Now().Second(),
+		}
+		if currTime.Second == 0 {
+			var wg sync.WaitGroup
+			wg.Add(1)
+			runCrons(&wg)
+			wg.Wait()
+		}
+	}
+}
+
+func runCrons(mainWg *sync.WaitGroup) {
+	defer func() {
+		mainWg.Done()
+	}()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go runCronMinutes(1, processor.Start, &wg) // 1 minute
+	wg.Wait()
+}
+
+func runCronMinutes(schedule int, function func(), wg *sync.WaitGroup) {
+	go func() {
+		defer func() {
+			wg.Done()
+		}()
+		remainder := currTime.Minute % schedule
+		if remainder == 0 {
+			function()
+		}
+		return
+	}()
+}
+
+func checkAndRemoveShifts(ctrl *controllers.TycheController) {
+	for {
+		time.Sleep(time.Second * 60)
+		log.Print("Removing obsolete shifts request")
+		count := 0
+		for k, v := range ctrl.PrepareShifts {
+			if time.Now().Unix() > v.Timestamp+prepareShiftTimeframe {
+				count += 1
+				ctrl.RemoveShiftFromMap(k)
+			}
+		}
+		log.Printf("Removed %v shifts", count)
+	}
 }

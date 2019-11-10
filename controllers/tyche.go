@@ -1,266 +1,180 @@
 package controllers
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
-	"os"
-	"strconv"
+	"github.com/grupokindynos/common/hestia"
+	"github.com/grupokindynos/tyche/models"
+	"sync"
 	"time"
 
-	"github.com/grupokindynos/common/jwt"
-
-	"github.com/gin-gonic/gin"
-	coinfactory "github.com/grupokindynos/common/coin-factory"
-	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/obol"
-	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/utils"
-	"github.com/grupokindynos/tyche/config"
-	tyche "github.com/grupokindynos/tyche/models"
+	"github.com/grupokindynos/olympus-utils/amount"
 	"github.com/grupokindynos/tyche/services"
 )
 
-//TycheController has the functions for handling the API endpoints
 type TycheController struct {
-	Cache map[string]hestia.ShiftRate
+	PrepareShifts map[string]models.PrepareShiftInfo
+	mapLock       sync.RWMutex
 }
 
-//GetServiceStatus gets if the shift service is active
-func (s *TycheController) GetServiceStatus(uid string, payload []byte) (interface{}, error) {
+func (s *TycheController) Status(uid string, payload []byte, params models.Params) (interface{}, error) {
 	status, err := services.GetServicesStatus()
 	if err != nil {
 		return nil, err
 	}
-	return jwt.EncryptJWE(uid, status.Shift)
+	return status.Shift, nil
 }
 
-//WaitRate is used for storing rates on the cache
-func (s *TycheController) WaitRate(rate hestia.ShiftRate, hashString string) {
-	// Store hash in cache
-	s.Cache[hashString] = rate
-
-	// Wait for N seconds, then delete from cache
-	seconds, _ := strconv.Atoi(os.Getenv("PREPARE_SECONDS"))
-	duration := time.Duration(seconds)
-
-	time.Sleep(time.Duration(duration) * time.Second)
-	delete(s.Cache, hashString)
-}
-
-// GetShiftAmount calculates the amount of balance that an individual can do
-func (s *TycheController) GetShiftAmount(c *gin.Context) {
-	coin := c.Param("coin")
-	balance, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), coin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-
-	if err != nil {
-		config.GlobalResponse(nil, err, c)
-		return
-	}
-	balanceModel := tyche.Balance{balance}
-
-	config.GlobalResponse(balanceModel, err, c)
-
-	return
-}
-
-func verifyTransaction(transaction plutus.DecodedRawTX, toAddress string, amount int64) error {
-	var isAddressOnTx, isAmountCorrect = false, false
-	for _, vout := range transaction.Vout {
-		if vout.ScriptPubKey.Addresses[0] == toAddress {
-			isAddressOnTx = true
-		}
-		amountToSat := int64(math.Round(vout.Value * 1e8))
-		totalAmount := amount
-		if amountToSat == totalAmount {
-			isAmountCorrect = true
-		}
-	}
-
-	if isAddressOnTx == false {
-		return errors.New("no matching address in raw tx")
-	}
-
-	if isAmountCorrect == false {
-		return errors.New("incorrect amount in raw tx")
-	}
-
-	return nil
-}
-
-func broadcastTX(coin string, rawTX string) (interface{}, error) {
-	// Broadcast transaction
-	coinInfo, _ := coinfactory.GetCoin(coin)
-
-	res, err := config.HTTPClient.Get("https://" + coinInfo.BlockchainInfo.ExternalSource + "/api/v2/sendtx/" + rawTX)
+func (s *TycheController) Balance(uid string, payload []byte, params models.Params) (interface{}, error) {
+	balance, err := services.GetWalletBalance(params.Coin)
 	if err != nil {
 		return nil, err
 	}
-
-	return res, err
+	return balance, nil
 }
 
-// PrepareShift prepares a shift given the coins and amount, and returns a token and a timestamp`
-func (s *TycheController) PrepareShift(uid string, payload []byte) (interface{}, error) {
-
-	// Get Data from Payload
-	var payloadStr string
-	json.Unmarshal(payload, &payloadStr)
-
-	var shiftData tyche.Receive
-	json.Unmarshal([]byte(payloadStr), &shiftData)
-
-	fromCoin := shiftData.FromCoin
-	toCoin := shiftData.ToCoin
-	amount := shiftData.Amount
-	feeCoin := shiftData.FeeCoin
-	amountStr := fmt.Sprintf("%f", amount/1e8)
-
-	// Verify coin is on coin factory
-	_, err := coinfactory.GetCoin(fromCoin)
+func (s *TycheController) Prepare(uid string, payload []byte, params models.Params) (interface{}, error) {
+	var prepareData models.PrepareShiftRequest
+	err := json.Unmarshal(payload, &prepareData)
 	if err != nil {
-		return fromCoin, err
+		return nil, err
 	}
-
-	_, err = coinfactory.GetCoin(toCoin)
+	amountHandler := amount.AmountType(prepareData.Amount)
+	rate, err := obol.GetCoin2CoinRatesWithAmount(obol.ProductionURL, prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
-		return fromCoin, err
+		return nil, err
 	}
-
-	// Get rate
-	rate, err := obol.GetCoin2CoinRatesWithAmmount(os.Getenv("OBOL_URL"), fromCoin, toCoin, amountStr)
-
+	coinRates, err := obol.GetCoinRates(obol.ProductionURL, prepareData.FromCoin)
 	if err != nil {
-		return rate, err
+		return nil, err
 	}
-
-	// Calculate receive amount
-	receiveAmount := math.Round(float64(amount) / rate)
-
-	// Calculate fee
-	fee := float64(receiveAmount) * .01 / 1e8
-	feeStr := fmt.Sprintf("%f", fee)
-	var rateFee, finalFee float64
-
-	if toCoin != feeCoin {
-		rateFee, err = obol.GetCoin2CoinRatesWithAmmount(os.Getenv("OBOL_URL"), toCoin, feeCoin, feeStr)
-		finalFee = (fee / rateFee) * 1e8
-	} else if fromCoin != feeCoin {
-		finalFee = fee * 1e8
-	}
-
+	polisRates, err := obol.GetCoinRates(obol.ProductionURL, "POLIS")
 	if err != nil {
-		return rateFee, err
+		return nil, err
 	}
-
-	//Get address from Plutus
-	address, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), fromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-	addressFee, err := plutus.GetWalletAddress(os.Getenv("PLUTUS_URL"), feeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-
-	//Create rate object
-	rateObject := hestia.ShiftRate{Rate: rate, FromAmount: int64(amount), FromCoin: fromCoin, ToCoin: toCoin, FeeAmount: int64(finalFee), ToAddress: address, FeeAddress: addressFee, FeeCoin: feeCoin, ToAmount: int64(receiveAmount)}
-
-	// Generate token hashing the uid
-	h := sha256.New()
-	h.Write([]byte(uid))
-	hashString := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	seconds, _ := strconv.Atoi(os.Getenv("PREPARE_SECONDS"))
-
-	// Create response object
-	responseObject := tyche.Prepare{Token: hashString, Rate: rateObject, Timestamp: time.Now().Unix() + int64(seconds)}
-
-	// Store token in cache
-	go s.WaitRate(rateObject, hashString)
-
-	token, err := jwt.EncryptJWE(uid, responseObject)
-
-	return token, err
-}
-
-// StoreShift validates and stores the shift on firebase
-func (s *TycheController) StoreShift(uid string, payload []byte) (interface{}, error) {
-	var payloadStr string
-	json.Unmarshal(payload, &payloadStr)
-
-	var shiftData tyche.NewShift
-	json.Unmarshal([]byte(payloadStr), &shiftData)
-	rawTX := shiftData.RawTX
-	feeTX := shiftData.FeeTX
-	token := shiftData.Token
-
-	// Get data from cache
-	data, valid := s.Cache[token]
-
-	if valid != true {
-		return data, errors.New("token not found")
+	var coinRatesUSD float64
+	for _, r := range coinRates {
+		if r.Code == "USD" {
+			coinRatesUSD = r.Rate
+		}
 	}
-
-	// Decode Raw transaction
-	transaction, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(rawTX), data.FromCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-	transactionFee, _ := plutus.DecodeRawTX(os.Getenv("PLUTUS_URL"), []byte(feeTX), data.FeeCoin, os.Getenv("TYCHE_PRIV_KEY"), "tyche", os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-	// Verify amount and address from prepared shift are the same as raw transaction
-
-	err := verifyTransaction(transactionFee, data.FeeAddress, data.FeeAmount)
-
+	var polisRatesUSD float64
+	for _, r := range polisRates {
+		if r.Code == "USD" {
+			polisRatesUSD = r.Rate
+		}
+	}
+	fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
+	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * 0.01)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	err = verifyTransaction(transaction, data.ToAddress, data.FromAmount)
+	rateAmountHandler, err := amount.NewAmount(rate.AveragePrice)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	// Broadcast transaction Fee
-	_, err = broadcastTX(data.FeeCoin, feeTX)
-
+	ToAmount, err := amount.NewAmount(amountHandler.ToNormalUnit() / rateAmountHandler.ToNormalUnit())
 	if err != nil {
-		return "could not broadcast TX fee", err
+		return nil, err
 	}
-
-	// Broadcast transaction
-	_, err = broadcastTX(data.FromCoin, rawTX)
+	paymentAddress, err := services.GetNewPaymentAddress(prepareData.FromCoin)
 	if err != nil {
-		return "could not broadcast TX from", err
+		return nil, err
 	}
-
-	shiftPayment := hestia.Payment{
-		Address:       data.ToAddress,
-		Amount:        data.ToAmount,
-		Coin:          data.FromCoin,
-		RawTx:         rawTX,
-		Txid:          transaction.Txid,
-		Confirmations: 0,
+	feeAddress, err := services.GetNewPaymentAddress("POLIS")
+	if err != nil {
+		return nil, err
 	}
-
-	feePayment := hestia.Payment{
-		Address:       data.FeeAddress,
-		Amount:        data.FeeAmount,
-		Coin:          data.FeeCoin,
-		RawTx:         feeTX,
-		Txid:          transactionFee.Txid,
-		Confirmations: 0,
+	payment := models.PaymentInfo{
+		Address: paymentAddress,
+		Amount:  prepareData.Amount,
 	}
-
-	shift := hestia.Shift{
+	feePayment := models.PaymentInfo{
+		Address: feeAddress,
+		Amount:  int64(fee.ToUnit(amount.AmountSats)),
+	}
+	prepareResponse := models.PrepareShiftResponse{
+		Payment:        payment,
+		Fee:            feePayment,
+		ReceivedAmount: int64(ToAmount.ToUnit(amount.AmountSats)),
+	}
+	prepareShift := models.PrepareShiftInfo{
 		ID:         utils.RandomString(),
-		Payment:    shiftPayment,
-		Status:     0,
-		Timestamp:  strconv.Itoa(int(time.Now().Unix())),
-		UID:        uid,
+		FromCoin:   prepareData.FromCoin,
+		Payment:    payment,
 		FeePayment: feePayment,
-		Rate:       data,
-		PayAddress: shiftData.PayAddress,
+		ToCoin:     prepareData.ToCoin,
+		ToAddress:  prepareData.ToAddress,
+		ToAmount:   int64(ToAmount.ToUnit(amount.AmountSats)),
+		Timestamp:  time.Now().Unix(),
 	}
+	s.AddShiftToMap(uid, prepareShift)
+	return prepareResponse, nil
+}
 
-	_, err = services.UpdateShift(shift)
-
+func (s *TycheController) Store(uid string, payload []byte, params models.Params) (interface{}, error) {
+	var shiftPayment models.StoreShift
+	err := json.Unmarshal(payload, &shiftPayment)
 	if err != nil {
-		return "", errors.New("could not store shift in database")
+		return nil, err
 	}
+	storedShift, err := s.GetShiftFromMap(uid)
+	if err != nil {
+		return nil, err
+	}
+	shift := hestia.Shift{
+		ID:        storedShift.ID,
+		UID:       uid,
+		Status:    hestia.GetShiftStatusString(hestia.ShiftStatusPending),
+		Timestamp: time.Now().Unix(),
+		Payment: hestia.Payment{
+			Address:       storedShift.Payment.Address,
+			Amount:        storedShift.Payment.Amount,
+			Coin:          storedShift.FromCoin,
+			RawTx:         shiftPayment.RawTX,
+			Txid:          "",
+			Confirmations: 0,
+		},
+		FeePayment: hestia.Payment{
+			Address:       storedShift.FeePayment.Address,
+			Amount:        storedShift.FeePayment.Amount,
+			Coin:          "POLIS",
+			RawTx:         shiftPayment.FeeTX,
+			Txid:          "",
+			Confirmations: 0,
+		},
+		ToCoin:    storedShift.ToCoin,
+		ToAmount:  storedShift.ToAmount,
+		ToAddress: storedShift.ToAddress,
+	}
+	shiftid, err := services.UpdateShift(shift)
+	if err != nil {
+		return nil, err
+	}
+	return shiftid, nil
+}
 
-	return "Success", nil
+func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfo) {
+	s.mapLock.Lock()
+	s.PrepareShifts[uid] = shiftPrepare
+	s.mapLock.Unlock()
+}
+
+func (s *TycheController) GetShiftFromMap(uid string) (models.PrepareShiftInfo, error) {
+	s.mapLock.Lock()
+	shift, ok := s.PrepareShifts[uid]
+	s.mapLock.Unlock()
+	if !ok {
+		return models.PrepareShiftInfo{}, errors.New("no shift found on cache")
+	}
+	return shift, nil
+}
+
+func (s *TycheController) RemoveShiftFromMap(uid string) {
+	s.mapLock.Lock()
+	delete(s.PrepareShifts, uid)
+	s.mapLock.Unlock()
 }
