@@ -3,7 +3,6 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/tyche/models"
 	"sync"
