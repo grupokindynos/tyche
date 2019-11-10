@@ -2,6 +2,7 @@
 
 > Tyche is the Greek goddess of chance, fate and fortune
 
+![Actions](https://github.com/grupokindynos/tyche/workflows/Tyche/badge.svg)
 [![codecov](https://codecov.io/gh/grupokindynos/tyche/branch/master/graph/badge.svg)](https://codecov.io/gh/grupokindynos/tyche)[![Go Report](https://goreportcard.com/badge/github.com/grupokindynos/tyche)](https://goreportcard.com/report/github.com/grupokindynos/tyche)
 [![GoDocs](https://godoc.org/github.com/grupokindynos/tyche?status.svg)](http://godoc.org/github.com/grupokindynos/tyche)
 
