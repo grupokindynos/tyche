@@ -41,6 +41,25 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if err != nil {
 		return nil, err
 	}
+	coinsConfig, err := services.GetCoinsConfig()
+	if err != nil {
+		return nil, err
+	}
+	var selectedCoin hestia.Coin
+	for _, coin := range coinsConfig {
+		if coin.Ticker == prepareData.FromCoin {
+			selectedCoin = coin
+		}
+	}
+
+	if selectedCoin.Ticker == "" {
+		return nil, err
+	}
+
+	if !selectedCoin.Shift.Available {
+		return nil, err
+	}
+
 	amountHandler := amount.AmountType(prepareData.Amount)
 	rate, err := obol.GetCoin2CoinRatesWithAmount(obol.ProductionURL, prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
@@ -67,7 +86,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		}
 	}
 	fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
-	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * 0.01)
+	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * float64(selectedCoin.Shift.FeePercentage) / float64(100))
 	if err != nil {
 		return nil, err
 	}
