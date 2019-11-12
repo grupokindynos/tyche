@@ -90,7 +90,7 @@ func GetCoinsConfig() ([]hestia.Coin, error) {
 }
 
 func UpdateShift(shiftData hestia.Shift) (string, error) {
-	req, err := mvt.CreateMVTToken("POST", "http://localhost:8081/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("POST", hestia.ProductionURL + "/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return "", err
 	}
