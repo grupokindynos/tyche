@@ -1,4 +1,4 @@
-name: Shift
+name: Tyche
 on: [push]
 jobs:
 
