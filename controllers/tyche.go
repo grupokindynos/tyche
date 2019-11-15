@@ -20,11 +20,11 @@ type TycheController struct {
 }
 
 func (s *TycheController) Status(uid string, payload []byte, params models.Params) (interface{}, error) {
-	status, err := services.GetServicesStatus()
+	status, err := services.GetShiftStatus()
 	if err != nil {
 		return nil, err
 	}
-	return status.Shift, nil
+	return status.Shift.Service, nil
 }
 
 func (s *TycheController) Balance(uid string, payload []byte, params models.Params) (interface{}, error) {
@@ -39,6 +39,13 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	var prepareData models.PrepareShiftRequest
 	err := json.Unmarshal(payload, &prepareData)
 	if err != nil {
+		return nil, err
+	}
+	status, err := services.GetShiftStatus()
+	if err != nil {
+		return nil, err
+	}
+	if !status.Shift.Service {
 		return nil, err
 	}
 	coinsConfig, err := services.GetCoinsConfig()
@@ -132,6 +139,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 }
 
 func (s *TycheController) Store(uid string, payload []byte, params models.Params) (interface{}, error) {
+	// TODO broadcast Tx
 	var shiftPayment models.StoreShift
 	err := json.Unmarshal(payload, &shiftPayment)
 	if err != nil {
@@ -150,7 +158,6 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 			Address:       storedShift.Payment.Address,
 			Amount:        storedShift.Payment.Amount,
 			Coin:          storedShift.FromCoin,
-			RawTx:         shiftPayment.RawTX,
 			Txid:          "",
 			Confirmations: 0,
 		},
@@ -158,7 +165,6 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 			Address:       storedShift.FeePayment.Address,
 			Amount:        storedShift.FeePayment.Amount,
 			Coin:          "POLIS",
-			RawTx:         shiftPayment.FeeTX,
 			Txid:          "",
 			Confirmations: 0,
 		},

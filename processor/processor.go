@@ -23,6 +23,14 @@ import (
 
 func Start() {
 	fmt.Println("Starting Shifts Processor")
+	status, err := services.GetShiftStatus()
+	if err != nil {
+		panic(err)
+	}
+	if !status.Shift.Processor {
+		fmt.Println("Shift Processor is Disabled")
+		return
+	}
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go handlePendingShifts(&wg)
@@ -50,34 +58,7 @@ func handlePendingShifts(wg *sync.WaitGroup) {
 			continue
 		}
 		// TODO validate txs
-
-		// Once the tx are fully validated we broadcast the information and mark the shift as confirming
-		paymentCoinConfig, err := coinfactory.GetCoin(s.Payment.Coin)
-		if err != nil {
-			fmt.Println("Unable to get payment coin configuration: " + err.Error())
-			continue
-		}
-		feeCoinConfig, err := coinfactory.GetCoin(s.FeePayment.Coin)
-		if err != nil {
-			fmt.Println("Unable to get fee coin configuration: " + err.Error())
-			continue
-		}
-		txidFee, err := broadCastTx(feeCoinConfig, s.FeePayment.RawTx)
-		if err != nil {
-			fmt.Println("Unable to broadcast fee rawTx: " + err.Error())
-			continue
-		}
-		s.FeePayment.RawTx = ""
-		s.FeePayment.Txid = txidFee
-		txidPayment, err := broadCastTx(paymentCoinConfig, s.Payment.RawTx)
-		if err != nil {
-			fmt.Println("Unable to broadcast payment rawTx: " + err.Error())
-			// TODO if this happens, we need to refund fee payment.
-			continue
-		}
-		s.Payment.RawTx = ""
-		s.Payment.Txid = txidPayment
-		s.Status = hestia.GetVoucherStatusString(hestia.VoucherStatusConfirming)
+		s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirming)
 		_, err = services.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift" + err.Error())
@@ -186,7 +167,7 @@ func getPendingShifts() ([]hestia.Shift, error) {
 }
 
 func getConfirmingShifts() ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetVoucherStatusString(hestia.VoucherStatusConfirming), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(hestia.ShiftStatusConfirming), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +205,7 @@ func getConfirmingShifts() ([]hestia.Shift, error) {
 }
 
 func getConfirmedShifts() ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetVoucherStatusString(hestia.VoucherStatusConfirmed), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
