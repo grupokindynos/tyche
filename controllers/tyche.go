@@ -253,8 +253,12 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	// Decode payment rawTx and verify
 	paymentOutputs, err := getRawTx(shiftData.Payment.Coin, rawTx)
 	if err != nil {
-		// If decode fail, we should mark error, mark refund, fees are already spent.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		// If decode fail and payment is POLIS, we should mark error.
+		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+		if storedShiftData.FromCoin != "POLIS" {
+			// If decode fail and payment is not POLIS, we should mark Refund to send back the fees.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		}
 		_, err = services.UpdateShift(shiftData)
 		if err != nil {
 			return
@@ -264,8 +268,12 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	paymentAmount := amount.AmountType(shiftData.Payment.Amount)
 	err = verifyTransaction(paymentOutputs, shiftData.Payment.Address, paymentAmount)
 	if err != nil {
-		// If verify fail, we should mark error, mark refund, fees are already spent.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		// If verify fail and payment is POLIS, we should mark error.
+		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+		if storedShiftData.FromCoin != "POLIS" {
+			// If decode fail and payment is not POLIS, we should mark Refund to send back the fees.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		}
 		_, err = services.UpdateShift(shiftData)
 		if err != nil {
 			return
@@ -275,8 +283,12 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	// Broadcast rawTx
 	coinConfig, err := coinfactory.GetCoin(shiftData.Payment.Coin)
 	if err != nil {
-		// If get coin fail, we should mark error, mark refund, fees are already spent.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		// If get coin fail and payment is POLIS, we should mark error.
+		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+		if storedShiftData.FromCoin != "POLIS" {
+			// If get coin fail and payment is not POLIS, we should mark Refund to send back the fees.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		}
 		_, err = services.UpdateShift(shiftData)
 		if err != nil {
 			return
@@ -285,8 +297,12 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	}
 	paymentTxid, err := broadCastTx(coinConfig, rawTx)
 	if err != nil {
-		// If broadcast fail, we should mark error, mark refund, fees are already spent.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		// If broadcast fail and payment is POLIS, we should mark error.
+		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+		if storedShiftData.FromCoin != "POLIS" {
+			// If broadcast fail and payment is not POLIS, we should mark Refund to send back the fees.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
+		}
 		_, err = services.UpdateShift(shiftData)
 		if err != nil {
 			return
