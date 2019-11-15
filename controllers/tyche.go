@@ -176,6 +176,8 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 		ToAmount:   storedShift.ToAmount,
 		ToAddress:  storedShift.ToAddress,
 		RefundAddr: shiftPayment.RefundAddr,
+		PaymentProof: "",
+		ProofTimestamp: 0,
 	}
 	s.RemoveShiftFromMap(uid)
 	shiftid, err := services.UpdateShift(shift)
@@ -198,6 +200,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		}
 		return
 	}
+
 	feeAmount := amount.AmountType(shiftData.FeePayment.Amount)
 	err = verifyTransaction(feeOutputs, shiftData.FeePayment.Address, feeAmount)
 	if err != nil {
