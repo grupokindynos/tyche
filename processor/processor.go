@@ -111,33 +111,46 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 			fmt.Println("Unable to get payment coin configuration: " + err.Error())
 			continue
 		}
-		feeCoinConfig, err := coinfactory.GetCoin(s.FeePayment.Coin)
-		if err != nil {
-			fmt.Println("Unable to get fee coin configuration: " + err.Error())
-			continue
-		}
-		// Check if shift has enough confirmations
-		if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
-			s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
-			_, err = services.UpdateShift(s)
+		if s.Payment.Coin != "POLIS" {
+			feeCoinConfig, err := coinfactory.GetCoin(s.FeePayment.Coin)
 			if err != nil {
-				fmt.Println("Unable to update shift confirmations: " + err.Error())
+				fmt.Println("Unable to get fee coin configuration: " + err.Error())
 				continue
 			}
-			continue
+			// Check if shift has enough confirmations
+			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
+				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
+				_, err = services.UpdateShift(s)
+				if err != nil {
+					fmt.Println("Unable to update shift confirmations: " + err.Error())
+					continue
+				}
+				continue
+			}
+			feeConfirmations, err := getConfirmations(feeCoinConfig, s.FeePayment.Txid)
+			if err != nil {
+				fmt.Println("Unable to get fee coin confirmations: " + err.Error())
+				continue
+			}
+			s.FeePayment.Confirmations = int32(feeConfirmations)
+		} else {
+			// Check if shift has enough confirmations
+			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
+				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
+				_, err = services.UpdateShift(s)
+				if err != nil {
+					fmt.Println("Unable to update shift confirmations: " + err.Error())
+					continue
+				}
+				continue
+			}
 		}
 		paymentConfirmations, err := getConfirmations(paymentCoinConfig, s.Payment.Txid)
 		if err != nil {
 			fmt.Println("Unable to get payment coin confirmations: " + err.Error())
 			continue
 		}
-		feeConfirmations, err := getConfirmations(feeCoinConfig, s.FeePayment.Txid)
-		if err != nil {
-			fmt.Println("Unable to get fee coin confirmations: " + err.Error())
-			continue
-		}
 		s.Payment.Confirmations = int32(paymentConfirmations)
-		s.FeePayment.Confirmations = int32(feeConfirmations)
 		_, err = services.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift confirmations: " + err.Error())

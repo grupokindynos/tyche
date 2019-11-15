@@ -130,7 +130,7 @@ func DecodeRawTx(coin string, rawTx string) (txInfo interface{}, err error) {
 }
 
 func SubmitPayment(body plutus.SendAddressBodyReq) (txid string, err error) {
-	req, err := mvt.CreateMVTToken("POST", plutus.ProductionURL+"/send/address", "ladon", os.Getenv("MASTER_PASSWORD"), body, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("LADON_PRIVATE_KEY"))
+	req, err := mvt.CreateMVTToken("POST", plutus.ProductionURL+"/send/address", "tyche", os.Getenv("MASTER_PASSWORD"), body, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return txid, err
 	}
