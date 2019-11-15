@@ -92,7 +92,7 @@ func GetNewPaymentAddress(coin string) (addr string, err error) {
 }
 
 func DecodeRawTx(coin string, rawTx string) (txInfo interface{}, err error) {
-	req, err := mvt.CreateMVTToken("GET", plutus.ProductionURL+"/decode/"+coin, "tyche", os.Getenv("MASTER_PASSWORD"), rawTx, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("POST", plutus.ProductionURL+"/decode/"+coin, "tyche", os.Getenv("MASTER_PASSWORD"), rawTx, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
