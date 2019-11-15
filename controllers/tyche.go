@@ -201,49 +201,53 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 }
 
 func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftData models.PrepareShiftInfo, rawTx string, feeTx string) {
-	// Decode fee rawTx and verify
-	feeOutputs, err := getRawTx("POLIS", feeTx)
-	if err != nil {
-		// If outputs fail, we should mark error, no spent anything.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-		_, err = services.UpdateShift(shiftData)
-		if err != nil {
-			return
-		}
-		return
-	}
+	var feeTxId string
 
-	feeAmount := amount.AmountType(shiftData.FeePayment.Amount)
-	err = verifyTransaction(feeOutputs, shiftData.FeePayment.Address, feeAmount)
-	if err != nil {
-		// If verify fail, we should mark error, no spent anything.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-		_, err = services.UpdateShift(shiftData)
+	if storedShiftData.FromCoin != "POLIS" {
+		// Decode fee rawTx and verify
+		feeOutputs, err := getRawTx("POLIS", feeTx)
 		if err != nil {
+			// If outputs fail, we should mark error, no spent anything.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+			_, err = services.UpdateShift(shiftData)
+			if err != nil {
+				return
+			}
 			return
 		}
-		return
-	}
-	// Broadcast fee rawTx
-	polisCoinConfig, err := coinfactory.GetCoin("POLIS")
-	if err != nil {
-		// If get coin fail, we should mark error, no spent anything.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-		_, err = services.UpdateShift(shiftData)
+
+		feeAmount := amount.AmountType(shiftData.FeePayment.Amount)
+		err = verifyTransaction(feeOutputs, shiftData.FeePayment.Address, feeAmount)
 		if err != nil {
+			// If verify fail, we should mark error, no spent anything.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+			_, err = services.UpdateShift(shiftData)
+			if err != nil {
+				return
+			}
 			return
 		}
-		return
-	}
-	feeTxid, err := broadCastTx(polisCoinConfig, feeTx)
-	if err != nil {
-		// If broadcast fail, we should mark error, no spent anything.
-		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-		_, err = services.UpdateShift(shiftData)
+		// Broadcast fee rawTx
+		polisCoinConfig, err := coinfactory.GetCoin("POLIS")
 		if err != nil {
+			// If get coin fail, we should mark error, no spent anything.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+			_, err = services.UpdateShift(shiftData)
+			if err != nil {
+				return
+			}
 			return
 		}
-		return
+		feeTxId, err = broadCastTx(polisCoinConfig, feeTx)
+		if err != nil {
+			// If broadcast fail, we should mark error, no spent anything.
+			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+			_, err = services.UpdateShift(shiftData)
+			if err != nil {
+				return
+			}
+			return
+		}
 	}
 
 	// Decode payment rawTx and verify
@@ -291,7 +295,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	}
 	// Update shift model include txid.
 	shiftData.Payment.Txid = paymentTxid
-	shiftData.FeePayment.Txid = feeTxid
+	shiftData.FeePayment.Txid = feeTxId
 	_, err = services.UpdateShift(shiftData)
 	if err != nil {
 		return
