@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
@@ -112,17 +113,24 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if err != nil {
 		return nil, err
 	}
-	feeAddress, err := services.GetNewPaymentAddress("POLIS")
-	if err != nil {
-		return nil, err
+	var feeAddress string
+	if prepareData.FromCoin != "POLIS" {
+		feeAddress, err = services.GetNewPaymentAddress("POLIS")
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	payment := models.PaymentInfo{
 		Address: paymentAddress,
 		Amount:  prepareData.Amount,
 	}
-	feePayment := models.PaymentInfo{
-		Address: feeAddress,
-		Amount:  int64(fee.ToUnit(amount.AmountSats)),
+	var feePayment models.PaymentInfo
+	if prepareData.FromCoin != "POLIS" {
+		feePayment = models.PaymentInfo{
+			Address: feeAddress,
+			Amount:  int64(fee.ToUnit(amount.AmountSats)),
+		}
 	}
 	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
@@ -153,6 +161,17 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 	if err != nil {
 		return nil, err
 	}
+
+	var feePayment hestia.Payment
+	if storedShift.FromCoin != "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       storedShift.FeePayment.Address,
+			Amount:        storedShift.FeePayment.Amount,
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
 	shift := hestia.Shift{
 		ID:        storedShift.ID,
 		UID:       uid,
@@ -165,18 +184,12 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 			Txid:          "",
 			Confirmations: 0,
 		},
-		FeePayment: hestia.Payment{
-			Address:       storedShift.FeePayment.Address,
-			Amount:        storedShift.FeePayment.Amount,
-			Coin:          "POLIS",
-			Txid:          "",
-			Confirmations: 0,
-		},
-		ToCoin:     storedShift.ToCoin,
-		ToAmount:   storedShift.ToAmount,
-		ToAddress:  storedShift.ToAddress,
-		RefundAddr: shiftPayment.RefundAddr,
-		PaymentProof: "",
+		FeePayment:     feePayment,
+		ToCoin:         storedShift.ToCoin,
+		ToAmount:       storedShift.ToAmount,
+		ToAddress:      storedShift.ToAddress,
+		RefundAddr:     shiftPayment.RefundAddr,
+		PaymentProof:   "",
 		ProofTimestamp: 0,
 	}
 	s.RemoveShiftFromMap(uid)
@@ -190,7 +203,7 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 
 func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftData models.PrepareShiftInfo, rawTx string, feeTx string) {
 	// Decode fee rawTx and verify
-	feeOutputs, err := getRawTx("POLIS", rawTx)
+	feeOutputs, err := getRawTx("POLIS", feeTx)
 	if err != nil {
 		// If outputs fail, we should mark error, no spent anything.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
