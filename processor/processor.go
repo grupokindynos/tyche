@@ -59,7 +59,6 @@ func handlePendingShifts(wg *sync.WaitGroup) {
 			continue
 		}
 		s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirming)
-		fmt.Println(s)
 		_, err = services.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift " + err.Error())
