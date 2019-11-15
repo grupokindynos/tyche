@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/tyche/models"
 	"sync"
@@ -51,11 +52,9 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 			selectedCoin = coin
 		}
 	}
-
 	if selectedCoin.Ticker == "" {
 		return nil, err
 	}
-
 	if !selectedCoin.Shift.Available {
 		return nil, err
 	}
@@ -168,6 +167,7 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 		ToAmount:  storedShift.ToAmount,
 		ToAddress: storedShift.ToAddress,
 	}
+	s.RemoveShiftFromMap(uid)
 	shiftid, err := services.UpdateShift(shift)
 	if err != nil {
 		return nil, err
