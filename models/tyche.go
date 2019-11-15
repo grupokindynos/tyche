@@ -1,5 +1,7 @@
 package models
 
+import "github.com/grupokindynos/olympus-utils/amount"
+
 type Params struct {
 	Coin string
 }
@@ -43,6 +45,12 @@ type PaymentInfo struct {
 }
 
 type StoreShift struct {
-	RawTX string `json:"raw_tx"`
-	FeeTX string `json:"fee_tx"`
+	RawTX      string `json:"raw_tx"`
+	FeeTX      string `json:"fee_tx"`
+	RefundAddr string `json:"refund_addr"`
+}
+
+type Outputs struct {
+	Address string
+	Amount  amount.AmountType
 }

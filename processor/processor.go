@@ -10,11 +10,11 @@ import (
 	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/tokens/mrt"
 	"github.com/grupokindynos/common/tokens/mvt"
+	"github.com/grupokindynos/olympus-utils/amount"
 	"github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/services"
 	"io/ioutil"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"sync"
@@ -32,10 +32,11 @@ func Start() {
 		return
 	}
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(4)
 	go handlePendingShifts(&wg)
 	go handleConfirmingShifts(&wg)
 	go handleConfirmedShifts(&wg)
+	go handleRefundShifts(&wg)
 	wg.Wait()
 	fmt.Println("Shifts Processor Finished")
 }
@@ -57,7 +58,6 @@ func handlePendingShifts(wg *sync.WaitGroup) {
 			}
 			continue
 		}
-		// TODO validate txs
 		s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirming)
 		_, err = services.UpdateShift(s)
 		if err != nil {
@@ -74,8 +74,26 @@ func handleConfirmedShifts(wg *sync.WaitGroup) {
 		fmt.Println("Confirmed shifts processor finished with errors: " + err.Error())
 		return
 	}
-	for _, _ = range shifts {
-		// TODO handle payment
+	for _, shift := range shifts {
+		amountHandler := amount.AmountType(shift.ToAmount)
+		paymentData := plutus.SendAddressBodyReq{
+			Address: shift.ToAddress,
+			Coin:    shift.ToCoin,
+			Amount:  amountHandler.ToNormalUnit(),
+		}
+		txid, err := services.SubmitPayment(paymentData)
+		if err != nil {
+			fmt.Println("unable to submit refund payment")
+			continue
+		}
+		shift.PaymentProof = txid
+		shift.ProofTimestamp = time.Now().Unix()
+		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusComplete)
+		_, err = services.UpdateShift(shift)
+		if err != nil {
+			fmt.Println("unable to update shift")
+			continue
+		}
 	}
 }
 
@@ -128,84 +146,51 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 	}
 }
 
+func handleRefundShifts(wg *sync.WaitGroup) {
+	defer wg.Done()
+	shifts, err := getRefundShifts()
+	if err != nil {
+		fmt.Println("Refund shifts processor finished with errors: " + err.Error())
+		return
+	}
+	for _, shift := range shifts {
+		paymentBody := plutus.SendAddressBodyReq{
+			Address: shift.RefundAddr,
+			Coin:    "POLIS",
+			Amount:  amount.AmountType(shift.FeePayment.Amount).ToNormalUnit(),
+		}
+		_, err := services.SubmitPayment(paymentBody)
+		if err != nil {
+			fmt.Println("unable to submit refund payment")
+			continue
+		}
+		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
+		_, err = services.UpdateShift(shift)
+		if err != nil {
+			fmt.Println("unable to update shift")
+			continue
+		}
+	}
+}
+
 func getPendingShifts() ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(hestia.ShiftStatusPending), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
-	if err != nil {
-		return nil, err
-	}
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	tokenResponse, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	var tokenString string
-	err = json.Unmarshal(tokenResponse, &tokenString)
-	if err != nil {
-		return nil, err
-	}
-	headerSignature := res.Header.Get("service")
-	if headerSignature == "" {
-		return nil, errors.New("no header signature")
-	}
-	valid, payload := mrt.VerifyMRTToken(headerSignature, tokenString, os.Getenv("HESTIA_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-	if !valid {
-		return nil, err
-	}
-	var response []hestia.Shift
-	err = json.Unmarshal(payload, &response)
-	if err != nil {
-		return nil, err
-	}
-	return response, nil
+	return getShifts(hestia.ShiftStatusPending)
 }
 
 func getConfirmingShifts() ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(hestia.ShiftStatusConfirming), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
-	if err != nil {
-		return nil, err
-	}
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	tokenResponse, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	var tokenString string
-	err = json.Unmarshal(tokenResponse, &tokenString)
-	if err != nil {
-		return nil, err
-	}
-	headerSignature := res.Header.Get("service")
-	if headerSignature == "" {
-		return nil, errors.New("no header signature")
-	}
-	valid, payload := mrt.VerifyMRTToken(headerSignature, tokenString, os.Getenv("HESTIA_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
-	if !valid {
-		return nil, err
-	}
-	var response []hestia.Shift
-	err = json.Unmarshal(payload, &response)
-	if err != nil {
-		return nil, err
-	}
-	return response, nil
+	return getShifts(hestia.ShiftStatusConfirming)
 }
 
 func getConfirmedShifts() ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	return getShifts(hestia.ShiftStatusConfirmed)
+}
+
+func getRefundShifts() ([]hestia.Shift, error) {
+	return getShifts(hestia.ShiftStatusRefund)
+}
+
+func getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error) {
+	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -257,46 +242,4 @@ func getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
 		return 0, err
 	}
 	return response.Confirmations, nil
-}
-
-func broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) {
-	resp, err := http.Get(coinConfig.BlockExplorer + "/api/v2/sendtx/" + rawTx)
-	if err != nil {
-		return "", err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	var response models.BlockbookBroadcastResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", err
-	}
-	if response.Error != "" {
-		return "", errors.New(response.Error)
-	}
-	return response.Result, nil
-}
-
-func verifyTransaction(transaction plutus.DecodedRawTX, toAddress string, amount int64) error {
-	var isAddressOnTx, isAmountCorrect = false, false
-	for _, vout := range transaction.Vout {
-		if vout.ScriptPubKey.Addresses[0] == toAddress {
-			isAddressOnTx = true
-		}
-		amountToSat := int64(math.Round(vout.Value * 1e8))
-		totalAmount := amount
-		if amountToSat == totalAmount {
-			isAmountCorrect = true
-		}
-	}
-	if isAddressOnTx == false {
-		return errors.New("no matching address in raw tx")
-	}
-	if isAmountCorrect == false {
-		return errors.New("incorrect amount in raw tx")
-	}
-
-	return nil
 }
