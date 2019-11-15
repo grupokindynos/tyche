@@ -283,7 +283,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	}
 }
 
-func getRawTx(coin string, rawTx string) ([]models.Outputs, error) {
+func getRawTx(coin string, rawTx string) ([]hestia.Outputs, error) {
 	rawData, err := services.DecodeRawTx(coin, rawTx)
 	if err != nil {
 		return nil, err
@@ -294,18 +294,18 @@ func getRawTx(coin string, rawTx string) ([]models.Outputs, error) {
 		if err != nil {
 			return nil, err
 		}
-		var txInfo models.PolisTxInfo
+		var txInfo hestia.PolisTxInfo
 		err = json.Unmarshal(rawInfo, &txInfo)
 		if err != nil {
 			return nil, err
 		}
-		var outputs []models.Outputs
+		var outputs []hestia.Outputs
 		for _, out := range txInfo.Vout {
 			amountHandler, err := amount.NewAmount(out.Value)
 			if err != nil {
 				return nil, err
 			}
-			newOutput := models.Outputs{
+			newOutput := hestia.Outputs{
 				Address: out.ScriptPubKey.Addresses[0],
 				Amount:  amountHandler,
 			}
@@ -317,18 +317,18 @@ func getRawTx(coin string, rawTx string) ([]models.Outputs, error) {
 		if err != nil {
 			return nil, err
 		}
-		var txInfo models.BitcoinTxInfo
+		var txInfo hestia.BitcoinTxInfo
 		err = json.Unmarshal(rawInfo, &txInfo)
 		if err != nil {
 			return nil, err
 		}
-		var outputs []models.Outputs
+		var outputs []hestia.Outputs
 		for _, out := range txInfo.Vout {
 			amountHandler, err := amount.NewAmount(out.Value)
 			if err != nil {
 				return nil, err
 			}
-			newOutput := models.Outputs{
+			newOutput := hestia.Outputs{
 				Address: out.ScriptPubKey.Addresses[0],
 				Amount:  amountHandler,
 			}
@@ -340,18 +340,18 @@ func getRawTx(coin string, rawTx string) ([]models.Outputs, error) {
 		if err != nil {
 			return nil, err
 		}
-		var txInfo models.DashTxInfo
+		var txInfo hestia.DashTxInfo
 		err = json.Unmarshal(rawInfo, &txInfo)
 		if err != nil {
 			return nil, err
 		}
-		var outputs []models.Outputs
+		var outputs []hestia.Outputs
 		for _, out := range txInfo.Vout {
 			amountHandler, err := amount.NewAmount(out.Value)
 			if err != nil {
 				return nil, err
 			}
-			newOutput := models.Outputs{
+			newOutput := hestia.Outputs{
 				Address: out.ScriptPubKey.Addresses[0],
 				Amount:  amountHandler,
 			}
@@ -382,7 +382,7 @@ func broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) 
 	return response.Result, nil
 }
 
-func verifyTransaction(outputs []models.Outputs, address string, amount amount.AmountType) error {
+func verifyTransaction(outputs []hestia.Outputs, address string, amount amount.AmountType) error {
 	var isAddressOnTx, isAmountCorrect = false, false
 	for _, output := range outputs {
 		if output.Address == address {
