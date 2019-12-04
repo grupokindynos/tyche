@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/grupokindynos/common/jwt"
 	"github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/processor"
@@ -23,8 +24,8 @@ import (
 )
 
 func init() {
-	_ = godotenv.Load()
-
+	err := godotenv.Load()
+	fmt.Println("missing .env configuration", err)
 }
 
 type CurrentTime struct {
