@@ -38,8 +38,9 @@ type PrepareShiftInfo struct {
 }
 
 type PaymentInfo struct {
-	Address string `json:"address"`
-	Amount  int64  `json:"amount"`
+	Address 	string 	`json:"address"`
+	Amount  	int64  	`json:"amount"`
+	HasPolisFee	bool	`json:"has_polis_fee"`
 }
 
 type StoreShift struct {

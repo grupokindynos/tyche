@@ -129,6 +129,15 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		feePayment = models.PaymentInfo{
 			Address: feeAddress,
 			Amount:  int64(fee.ToUnit(amount.AmountSats)),
+			HasPolisFee: true,
+		}
+	}
+	// Eliminates payment fee when converting to Polis.
+	if prepareData.ToCoin == "POLIS" {
+		feePayment = models.PaymentInfo{
+			Address: "no fee for polis",
+			Amount:  0,
+			HasPolisFee: false,
 		}
 	}
 	prepareResponse := models.PrepareShiftResponse{
