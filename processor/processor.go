@@ -106,18 +106,21 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 	}
 	// Check confirmations and return
 	for _, s := range shifts {
+		log.Println("confirming shift: ", s.ID)
 		paymentCoinConfig, err := coinfactory.GetCoin(s.Payment.Coin)
 		if err != nil {
 			fmt.Println("Unable to get payment coin configuration: " + err.Error())
 			continue
 		}
-		if s.Payment.Coin != "POLIS" {
+		// Processor should only validate Payment coin if tx comes from or to POLIS
+		// Conditional statement is logic for the negation for "if its from or to polis"
+		if s.Payment.Coin != "POLIS" && s.FeePayment.Coin != "POLIS" {
 			feeCoinConfig, err := coinfactory.GetCoin(s.FeePayment.Coin)
 			if err != nil {
 				fmt.Println("Unable to get fee coin configuration: " + err.Error())
 				continue
 			}
-			// Check if shift has enough confirmations
+			// Check if shift has enough confirmations for coins that are not Polis
 			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
 				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
 				_, err = services.UpdateShift(s)
@@ -134,7 +137,7 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 			}
 			s.FeePayment.Confirmations = int32(feeConfirmations)
 		} else {
-			// Check if shift has enough confirmations
+			// If shift comes from or targets polis handle only the input coin.
 			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
 				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
 				_, err = services.UpdateShift(s)

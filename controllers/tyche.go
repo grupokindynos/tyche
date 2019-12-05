@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
@@ -129,7 +130,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		feePayment = models.PaymentInfo{
 			Address: feeAddress,
 			Amount:  int64(fee.ToUnit(amount.AmountSats)),
-			HasPolisFee: true,
+			HasFee: true,
 		}
 	}
 	// Eliminates payment fee when converting to Polis.
@@ -137,9 +138,10 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		feePayment = models.PaymentInfo{
 			Address: "no fee for polis",
 			Amount:  0,
-			HasPolisFee: false,
+			HasFee: false,
 		}
 	}
+	fmt.Println("Prepare Data", prepareData)
 	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
 		Fee:            feePayment,
@@ -161,7 +163,9 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 
 func (s *TycheController) Store(uid string, payload []byte, params models.Params) (interface{}, error) {
 	var shiftPayment models.StoreShift
+	log.Println(string(payload))
 	err := json.Unmarshal(payload, &shiftPayment)
+	fmt.Println("Shift Payment: ", shiftPayment.HasFee)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +184,17 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 			Confirmations: 0,
 		}
 	}
+
+	if storedShift.ToCoin == "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       "N/A", // no fee por Polis conversion
+			Amount:        storedShift.FeePayment.Amount, // should be aways 0.0
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
+
 	shift := hestia.Shift{
 		ID:        storedShift.ID,
 		UID:       uid,
@@ -206,13 +221,16 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 		return nil, err
 	}
 	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
+	fmt.Println("debug shiftid: ", shiftid)
 	return shiftid, nil
 }
 
 func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftData models.PrepareShiftInfo, rawTx string, feeTx string) {
 	var feeTxId string
 
-	if storedShiftData.FromCoin != "POLIS" {
+	// Only decode raw transaction if tx does not come from or to POLIS
+	// Conditional statement is logic for the negation for "if its from or to polis"
+	if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
 		// Decode fee rawTx and verify
 		feeOutputs, err := getRawTx("POLIS", feeTx)
 		if err != nil {
@@ -261,6 +279,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 
 	// Decode payment rawTx and verify
 	paymentOutputs, err := getRawTx(shiftData.Payment.Coin, rawTx)
+	log.Println("decoding tx po: ", shiftData.ID, paymentOutputs)
 	if err != nil {
 		// If decode fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -305,6 +324,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		return
 	}
 	paymentTxid, err := broadCastTx(coinConfig, rawTx)
+	log.Println("deguggin tx broadcasting", shiftData.ID, " ", paymentTxid, err)
 	if err != nil {
 		// If broadcast fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
