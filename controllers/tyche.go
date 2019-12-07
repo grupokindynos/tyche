@@ -3,16 +3,16 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	coinfactory "github.com/grupokindynos/common/coin-factory"
-	"github.com/grupokindynos/common/coin-factory/coins"
-	"github.com/grupokindynos/common/hestia"
-	"github.com/grupokindynos/tyche/models"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	coinfactory "github.com/grupokindynos/common/coin-factory"
+	"github.com/grupokindynos/common/coin-factory/coins"
+	"github.com/grupokindynos/common/hestia"
+	"github.com/grupokindynos/tyche/models"
 
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/utils"
@@ -130,7 +130,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		feePayment = models.PaymentInfo{
 			Address: feeAddress,
 			Amount:  int64(fee.ToUnit(amount.AmountSats)),
-			HasFee: true,
+			HasFee:  true,
 		}
 	}
 	// Eliminates payment fee when converting to Polis.
@@ -138,10 +138,10 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		feePayment = models.PaymentInfo{
 			Address: "no fee for polis",
 			Amount:  0,
-			HasFee: false,
+			HasFee:  false,
 		}
 	}
-	fmt.Println("Prepare Data", prepareData)
+
 	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
 		Fee:            feePayment,
@@ -165,7 +165,6 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 	var shiftPayment models.StoreShift
 	log.Println(string(payload))
 	err := json.Unmarshal(payload, &shiftPayment)
-	fmt.Println("Shift Payment: ", shiftPayment.HasFee)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +186,7 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 
 	if storedShift.ToCoin == "POLIS" {
 		feePayment = hestia.Payment{
-			Address:       "N/A", // no fee por Polis conversion
+			Address:       "N/A",                         // no fee por Polis conversion
 			Amount:        storedShift.FeePayment.Amount, // should be aways 0.0
 			Coin:          "POLIS",
 			Txid:          "",
@@ -221,7 +220,6 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 		return nil, err
 	}
 	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
-	fmt.Println("debug shiftid: ", shiftid)
 	return shiftid, nil
 }
 
