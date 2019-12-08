@@ -106,7 +106,6 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 	}
 	// Check confirmations and return
 	for _, s := range shifts {
-		log.Println("confirming shift: ", s.ID)
 		paymentCoinConfig, err := coinfactory.GetCoin(s.Payment.Coin)
 		if err != nil {
 			fmt.Println("Unable to get payment coin configuration: " + err.Error())
