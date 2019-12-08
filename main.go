@@ -2,14 +2,15 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/grupokindynos/common/jwt"
-	"github.com/grupokindynos/tyche/models"
-	"github.com/grupokindynos/tyche/processor"
 	"log"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/grupokindynos/common/jwt"
+	"github.com/grupokindynos/tyche/models"
+	"github.com/grupokindynos/tyche/processor"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -24,7 +25,6 @@ import (
 
 func init() {
 	_ = godotenv.Load()
-
 }
 
 type CurrentTime struct {
