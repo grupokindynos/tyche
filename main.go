@@ -5,6 +5,7 @@ import (
 	"github.com/grupokindynos/common/jwt"
 	"github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/processor"
+	"github.com/grupokindynos/tyche/services"
 	"log"
 	"net/http"
 	"os"
@@ -140,7 +141,8 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go runCronMinutes(1, processor.Start, &wg) // 1 minute
+	proc := processor.Processor{Hestia: &services.HestiaRequests{}, Plutus: &services.PlutusRequests{}}
+	go runCronMinutes(1, proc.Start, &wg) // 1 minute
 	wg.Wait()
 }
 
