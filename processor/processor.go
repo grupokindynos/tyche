@@ -83,7 +83,7 @@ func handleConfirmedShifts(wg *sync.WaitGroup) {
 		}
 		txid, err := services.SubmitPayment(paymentData)
 		if err != nil {
-			fmt.Println("unable to submit refund payment")
+			fmt.Println("unable to submit payment")
 			continue
 		}
 		shift.PaymentProof = txid
