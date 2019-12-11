@@ -262,14 +262,16 @@ func TestStore(t *testing.T) {
 	}
 
 	mockHestiaService := mocks.NewMockHestiaService(mockCtrl)
+	mockPlutusService := mocks.NewMockPlutusService(mockCtrl)
 
 	shiftsMap := make(map[string]models.PrepareShiftInfo)
 	shiftsMap[uid] = preparedShift
 
-	testTyche := &controllers.TycheController{PrepareShifts: shiftsMap, Hestia: mockHestiaService}
+	testTyche := &controllers.TycheController{PrepareShifts: shiftsMap, Hestia: mockHestiaService, Plutus: mockPlutusService}
 
 	gomock.InOrder(
 		mockHestiaService.EXPECT().UpdateShift(gomock.Eq(shift)).Return(shiftId, nil),
+		mockPlutusService.EXPECT().DecodeRawTx(gomock.Any(), gomock.Any()).AnyTimes().Return(shiftPayment, nil),
 	)
 
 	idResponse, err := testTyche.Store(uid, payload, params)
