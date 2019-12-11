@@ -286,7 +286,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	if err != nil {
 		// If decode fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-		if storedShiftData.FromCoin != "POLIS" {
+		if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
 			// If decode fail and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
@@ -297,7 +297,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		return
 	}
 	if !valid {
-		if storedShiftData.FromCoin != "POLIS" {
+		if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
 			// If is not valid and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
