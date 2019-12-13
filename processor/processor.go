@@ -22,8 +22,9 @@ import (
 )
 
 type Processor struct {
-	Hestia services.HestiaService
-	Plutus services.PlutusService
+	Hestia    services.HestiaService
+	Plutus    services.PlutusService
+	HestiaURL string
 }
 
 func (p *Processor) Start() {
@@ -208,7 +209,7 @@ func (p *Processor) getRefundShifts() ([]hestia.Shift, error) {
 }
 
 func (p *Processor) getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift/all?filter="+hestia.GetShiftStatusString(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}

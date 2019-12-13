@@ -22,6 +22,7 @@ import (
 type TycheController struct {
 	PrepareShifts map[string]models.PrepareShiftInfo
 	mapLock       sync.RWMutex
+	txsAvailable  bool
 	Hestia        services.HestiaService
 	Plutus        services.PlutusService
 	Obol          obol.ObolService
@@ -221,7 +222,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		}
 
 		feeAmount := amount.AmountType(shiftData.FeePayment.Amount)
-		err = verifyTransaction(feeOutputs, shiftData.FeePayment.Address, feeAmount)
+		err = s.verifyTransaction(feeOutputs, shiftData.FeePayment.Address, feeAmount)
 		if err != nil {
 			// If verify fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -242,7 +243,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			}
 			return
 		}
-		feeTxId, err = broadCastTx(polisCoinConfig, feeTx)
+		feeTxId, err = s.broadCastTx(polisCoinConfig, feeTx)
 		if err != nil {
 			// If broadcast fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -270,7 +271,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		return
 	}
 	paymentAmount := amount.AmountType(shiftData.Payment.Amount)
-	err = verifyTransaction(paymentOutputs, shiftData.Payment.Address, paymentAmount)
+	err = s.verifyTransaction(paymentOutputs, shiftData.Payment.Address, paymentAmount)
 	if err != nil {
 		// If verify fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -299,7 +300,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		}
 		return
 	}
-	paymentTxid, err := broadCastTx(coinConfig, rawTx)
+	paymentTxid, err := s.broadCastTx(coinConfig, rawTx)
 	if err != nil {
 		// If broadcast fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -401,7 +402,11 @@ func (s *TycheController) getRawTx(coin string, rawTx string) ([]hestia.Outputs,
 	return nil, nil
 }
 
-func broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) {
+func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) {
+	if !s.txsAvailable {
+		return "Not published due no-txs flag", nil
+	}
+
 	resp, err := http.Get(coinConfig.BlockExplorer + "/api/v2/sendtx/" + rawTx)
 	if err != nil {
 		return "", err
@@ -421,7 +426,7 @@ func broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) 
 	return response.Result, nil
 }
 
-func verifyTransaction(outputs []hestia.Outputs, address string, amount amount.AmountType) error {
+func (s *TycheController) verifyTransaction(outputs []hestia.Outputs, address string, amount amount.AmountType) error {
 	var isAddressOnTx, isAmountCorrect = false, false
 	for _, output := range outputs {
 		if output.Address == address {

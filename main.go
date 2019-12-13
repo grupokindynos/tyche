@@ -2,15 +2,17 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/grupokindynos/common/jwt"
-	"github.com/grupokindynos/tyche/models"
-	"github.com/grupokindynos/tyche/processor"
-	"github.com/grupokindynos/tyche/services"
+	"flag"
 	"log"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/grupokindynos/common/jwt"
+	"github.com/grupokindynos/tyche/models"
+	"github.com/grupokindynos/tyche/processor"
+	"github.com/grupokindynos/tyche/services"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -40,9 +42,34 @@ var (
 	prepareShiftsMap = make(map[string]models.PrepareShiftInfo)
 )
 
+var (
+	hestiaEnv    string
+	txsAvailable bool
+)
+
 const prepareShiftTimeframe = 60 * 5 // 5 minutes
 
 func main() {
+	// Read input flag
+	localRun := flag.Bool("local", false, "set this flag to run tyche with local requests")
+	noTxs := flag.Bool("no-txs", false, "set this flag to avoid txs being executed")
+
+	flag.Parse()
+
+	// If flag was set, change the hestia request url to be local
+	if *localRun {
+		hestiaEnv = "HESTIA_LOCAL_URL"
+	} else {
+		hestiaEnv = "HESTIA_PRODUCTION_URL"
+	}
+
+	// If flag was set, disable txs
+	if *noTxs {
+		txsAvailable = false
+	} else {
+		txsAvailable = true
+	}
+
 	currTime = CurrentTime{
 		Hour:   time.Now().Hour(),
 		Day:    time.Now().Day(),
@@ -102,7 +129,7 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte, par
 			return
 		}
 	}
-	valid, payload, uid, err := ppat.VerifyPPATToken(hestia.ProductionURL, "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
+	valid, payload, uid, err := ppat.VerifyPPATToken(os.Getenv(hestiaEnv), "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
 	if !valid {
 		responses.GlobalResponseNoAuth(c)
 		return
@@ -141,7 +168,7 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	proc := processor.Processor{Hestia: &services.HestiaRequests{}, Plutus: &services.PlutusRequests{}}
+	proc := processor.Processor{Hestia: &services.HestiaRequests{}, Plutus: &services.PlutusRequests{}, HestiaURL: hestiaEnv}
 	go runCronMinutes(1, proc.Start, &wg) // 1 minute
 	wg.Wait()
 }
