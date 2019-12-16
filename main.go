@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -43,8 +44,9 @@ var (
 )
 
 var (
-	hestiaEnv    string
-	txsAvailable bool
+	hestiaEnv       string
+	txsAvailable    bool
+	skipValidations bool
 )
 
 const prepareShiftTimeframe = 60 * 5 // 5 minutes
@@ -52,22 +54,28 @@ const prepareShiftTimeframe = 60 * 5 // 5 minutes
 func main() {
 	// Read input flag
 	localRun := flag.Bool("local", false, "set this flag to run tyche with local requests")
-	noTxs := flag.Bool("no-txs", false, "set this flag to avoid txs being executed")
+	noTxs := flag.Bool("no-txs", false, "set this flag to avoid txs being executed"+
+		"IMPORTANT: -local flag needs to be set in order to use this.")
+	skipVal := flag.Bool("skip-val", false, "set this flag to avoid validations on txs."+
+		"IMPORTANT: -local flag needs to be set in order to use this.")
+	port := flag.String("port", "8080", "set different port for local run")
 
 	flag.Parse()
 
 	// If flag was set, change the hestia request url to be local
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
+
+		// check if testing flags were set
+		txsAvailable = *noTxs
+		skipValidations = *skipVal
+
 	} else {
 		hestiaEnv = "HESTIA_PRODUCTION_URL"
-	}
-
-	// If flag was set, disable txs
-	if *noTxs {
-		txsAvailable = false
-	} else {
-		txsAvailable = true
+		if *noTxs || *skipVal {
+			fmt.Println("cannot set testing flags without -local flag")
+			os.Exit(1)
+		}
 	}
 
 	currTime = CurrentTime{
@@ -77,12 +85,12 @@ func main() {
 		Second: time.Now().Second(),
 	}
 	go timer()
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	if os.Getenv("PORT") != "" {
+		*port = os.Getenv("PORT")
 	}
+
 	App := GetApp()
-	_ = App.Run(":" + port)
+	_ = App.Run(":" + *port)
 }
 
 func GetApp() *gin.Engine {
@@ -168,7 +176,7 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	proc := processor.Processor{Hestia: &services.HestiaRequests{}, Plutus: &services.PlutusRequests{}, HestiaURL: hestiaEnv}
+	proc := processor.Processor{Hestia: &services.HestiaRequests{}, Plutus: &services.PlutusRequests{}, HestiaURL: hestiaEnv, SkipValidations: skipValidations}
 	go runCronMinutes(1, proc.Start, &wg) // 1 minute
 	wg.Wait()
 }

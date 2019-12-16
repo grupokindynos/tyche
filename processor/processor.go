@@ -22,9 +22,10 @@ import (
 )
 
 type Processor struct {
-	Hestia    services.HestiaService
-	Plutus    services.PlutusService
-	HestiaURL string
+	Hestia          services.HestiaService
+	Plutus          services.PlutusService
+	HestiaURL       string
+	SkipValidations bool
 }
 
 func (p *Processor) Start() {
@@ -124,7 +125,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 				continue
 			}
 			// Check if shift has enough confirmations
-			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
+			if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
 				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
 				_, err = p.Hestia.UpdateShift(s)
 				if err != nil {
@@ -141,7 +142,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 			s.FeePayment.Confirmations = int32(feeConfirmations)
 		} else {
 			// Check if shift has enough confirmations
-			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
+			if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
 				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
 				_, err = p.Hestia.UpdateShift(s)
 				if err != nil {
