@@ -176,6 +176,7 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 			Confirmations: 0,
 		}
 	}
+
 	shift := hestia.Shift{
 		ID:        storedShift.ID,
 		UID:       uid,
