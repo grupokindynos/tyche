@@ -72,6 +72,8 @@ github.com/grpc-ecosystem/grpc-gateway v1.9.4/go.mod h1:vNeuVxBJEsws4ogUvrchl83t
 github.com/grpc-ecosystem/grpc-gateway v1.9.6/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grupokindynos/common v0.0.0-20191211140750-51bb04b3b23f h1:0P+yQ/0H3Tdecw6YG9aSlW2tptA5fuqjVIk9tf0p4q0=
 github.com/grupokindynos/common v0.0.0-20191211140750-51bb04b3b23f/go.mod h1:LGf4Vw/gG9LotMlC0G6ciDpoihzUyxPe/1SyhKktvOg=
+github.com/grupokindynos/common v0.0.0-20191217020249-a0f314bcc636 h1:w69FmK7p1sUHNGt/rDfnigoM2kQtq05WcF0gTuZYML8=
+github.com/grupokindynos/common v0.0.0-20191217020249-a0f314bcc636/go.mod h1:LGf4Vw/gG9LotMlC0G6ciDpoihzUyxPe/1SyhKktvOg=
 github.com/grupokindynos/olympus-utils v0.0.0-20191114150906-5c358df85e5c h1:6CSFnEkKH1eAs9FqS2DNqksoSPNYfVE05riAx5cg6ME=
 github.com/grupokindynos/olympus-utils v0.0.0-20191114150906-5c358df85e5c/go.mod h1:CO1mJJZwQrTgBTLXxhn5wJf00YNex3T7kAVy19RBun8=
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
