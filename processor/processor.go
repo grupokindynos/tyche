@@ -57,6 +57,7 @@ func (p *Processor) handlePendingShifts(wg *sync.WaitGroup) {
 	}
 	for _, s := range shifts {
 		if s.Timestamp+7200 < time.Now().Unix() {
+			fmt.Println("Processor - 60")
 			s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
 			_, err = p.Hestia.UpdateShift(s)
 			if err != nil {
@@ -90,7 +91,8 @@ func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 		}
 		txid, err := p.Plutus.SubmitPayment(paymentData)
 		if err != nil {
-			fmt.Println("unable to submit refund payment")
+			//fmt.Println(err)
+			//fmt.Println("unable to submit refund payment - 94")
 			continue
 		}
 		shift.PaymentProof = txid
@@ -181,7 +183,8 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 		}
 		_, err := p.Plutus.SubmitPayment(paymentBody)
 		if err != nil {
-			fmt.Println("unable to submit refund payment")
+			fmt.Println(err)
+			fmt.Println("unable to submit refund payment - 186")
 			continue
 		}
 		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)

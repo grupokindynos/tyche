@@ -18,6 +18,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/grupokindynos/common/hestia"
+	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/responses"
 	"github.com/grupokindynos/common/tokens/ppat"
 	"github.com/grupokindynos/tyche/controllers"
@@ -58,6 +59,7 @@ func main() {
 		"IMPORTANT: -local flag needs to be set in order to use this.")
 	skipVal := flag.Bool("skip-val", false, "set this flag to avoid validations on txs."+
 		"IMPORTANT: -local flag needs to be set in order to use this.")
+	stopProcessor := flag.Bool("stop-proc", false, "set this flag to stop the automatic run of processor")
 	port := flag.String("port", "8080", "set different port for local run")
 
 	flag.Parse()
@@ -84,7 +86,11 @@ func main() {
 		Minute: time.Now().Minute(),
 		Second: time.Now().Second(),
 	}
-	go timer()
+
+	if !*stopProcessor {
+		go timer()
+	}
+
 	if os.Getenv("PORT") != "" {
 		*port = os.Getenv("PORT")
 	}
@@ -104,7 +110,7 @@ func GetApp() *gin.Engine {
 }
 
 func ApplyRoutes(r *gin.Engine) {
-	tycheCtrl := &controllers.TycheController{PrepareShifts: prepareShiftsMap}
+	tycheCtrl := &controllers.TycheController{PrepareShifts: prepareShiftsMap, Hestia: &services.HestiaRequests{HestiaURL: hestiaEnv}, Plutus: &services.PlutusRequests{}, Obol: &obol.ObolRequest{}}
 	go checkAndRemoveShifts(tycheCtrl)
 	api := r.Group("/")
 	{
@@ -176,7 +182,7 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	proc := processor.Processor{Hestia: &services.HestiaRequests{}, Plutus: &services.PlutusRequests{}, HestiaURL: hestiaEnv, SkipValidations: skipValidations}
+	proc := processor.Processor{Hestia: &services.HestiaRequests{HestiaURL: hestiaEnv}, Plutus: &services.PlutusRequests{}, HestiaURL: hestiaEnv, SkipValidations: skipValidations}
 	go runCronMinutes(1, proc.Start, &wg) // 1 minute
 	wg.Wait()
 }
