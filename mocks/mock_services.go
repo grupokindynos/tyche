@@ -102,21 +102,6 @@ func (m *MockPlutusService) EXPECT() *MockPlutusServiceMockRecorder {
 	return m.recorder
 }
 
-// DecodeRawTx mocks base method
-func (m *MockPlutusService) DecodeRawTx(arg0, arg1 string) (interface{}, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DecodeRawTx", arg0, arg1)
-	ret0, _ := ret[0].(interface{})
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DecodeRawTx indicates an expected call of DecodeRawTx
-func (mr *MockPlutusServiceMockRecorder) DecodeRawTx(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecodeRawTx", reflect.TypeOf((*MockPlutusService)(nil).DecodeRawTx), arg0, arg1)
-}
-
 // GetNewPaymentAddress mocks base method
 func (m *MockPlutusService) GetNewPaymentAddress(arg0 string) (string, error) {
 	m.ctrl.T.Helper()
@@ -160,4 +145,19 @@ func (m *MockPlutusService) SubmitPayment(arg0 plutus.SendAddressBodyReq) (strin
 func (mr *MockPlutusServiceMockRecorder) SubmitPayment(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitPayment", reflect.TypeOf((*MockPlutusService)(nil).SubmitPayment), arg0)
+}
+
+// ValidateRawTx mocks base method
+func (m *MockPlutusService) ValidateRawTx(arg0 plutus.ValidateRawTxReq) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateRawTx", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ValidateRawTx indicates an expected call of ValidateRawTx
+func (mr *MockPlutusServiceMockRecorder) ValidateRawTx(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateRawTx", reflect.TypeOf((*MockPlutusService)(nil).ValidateRawTx), arg0)
 }

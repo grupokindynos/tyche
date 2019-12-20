@@ -108,7 +108,6 @@ func TestPrepare(t *testing.T) {
 	}
 	payload, _ := json.Marshal(prepareData)
 
-	productionURL := "https://www.dummyURL.com"
 	paymentAddress := "123dummyAddress456"
 	uid := "123456789"
 	params := models.Params{Coin: "POLIS"}
@@ -162,10 +161,9 @@ func TestPrepare(t *testing.T) {
 	gomock.InOrder(
 		mockHestiaService.EXPECT().GetShiftStatus().Return(hestiaAvailable, nil),
 		mockHestiaService.EXPECT().GetCoinsConfig().Return(coinsConfig, nil),
-		mockObolService.EXPECT().GetProductionURL().Return(productionURL, nil),
-		mockObolService.EXPECT().GetCoin2CoinRatesWithAmount(gomock.Eq(productionURL), gomock.Eq(prepareData.FromCoin), gomock.Eq(prepareData.ToCoin), gomock.Eq(amountHandler.String())).Return(coin2CoinResponse, nil),
-		mockObolService.EXPECT().GetCoinRates(gomock.Eq(productionURL), gomock.Eq(prepareData.FromCoin)).Return(coinsRate, nil),
-		mockObolService.EXPECT().GetCoinRates(gomock.Eq(productionURL), gomock.Eq("POLIS")).Return(coinsRate, nil),
+		mockObolService.EXPECT().GetCoin2CoinRatesWithAmount(gomock.Eq(prepareData.FromCoin), gomock.Eq(prepareData.ToCoin), gomock.Eq(amountHandler.String())).Return(coin2CoinResponse, nil),
+		mockObolService.EXPECT().GetCoinRates(gomock.Eq(prepareData.FromCoin)).Return(coinsRate, nil),
+		mockObolService.EXPECT().GetCoinRates(gomock.Eq("POLIS")).Return(coinsRate, nil),
 		mockPlutusService.EXPECT().GetNewPaymentAddress(gomock.Eq(prepareData.FromCoin)).Return(paymentAddress, nil),
 	)
 
@@ -271,7 +269,7 @@ func TestStore(t *testing.T) {
 
 	gomock.InOrder(
 		mockHestiaService.EXPECT().UpdateShift(gomock.Eq(shift)).Return(shiftId, nil),
-		mockPlutusService.EXPECT().DecodeRawTx(gomock.Any(), gomock.Any()).AnyTimes().Return(shiftPayment, nil),
+		mockPlutusService.EXPECT().ValidateRawTx(gomock.Any()).AnyTimes().Return(true, nil),
 	)
 
 	idResponse, err := testTyche.Store(uid, payload, params)

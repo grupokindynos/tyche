@@ -14,6 +14,6 @@ type HestiaService interface {
 type PlutusService interface {
 	GetWalletBalance(coin string) (plutus.Balance, error)
 	GetNewPaymentAddress(coin string) (addr string, err error)
-	DecodeRawTx(coin string, rawTx string) (txInfo interface{}, err error)
+	ValidateRawTx(body plutus.ValidateRawTxReq) (valid bool, err error)
 	SubmitPayment(body plutus.SendAddressBodyReq) (txid string, err error)
 }

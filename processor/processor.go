@@ -57,7 +57,6 @@ func (p *Processor) handlePendingShifts(wg *sync.WaitGroup) {
 	}
 	for _, s := range shifts {
 		if s.Timestamp+7200 < time.Now().Unix() {
-			fmt.Println("Processor - 60")
 			s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
 			_, err = p.Hestia.UpdateShift(s)
 			if err != nil {
@@ -91,8 +90,7 @@ func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 		}
 		txid, err := p.Plutus.SubmitPayment(paymentData)
 		if err != nil {
-			//fmt.Println(err)
-			//fmt.Println("unable to submit refund payment - 94")
+			fmt.Println("unable to submit payment")
 			continue
 		}
 		shift.PaymentProof = txid
@@ -120,7 +118,9 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 			fmt.Println("Unable to get payment coin configuration: " + err.Error())
 			continue
 		}
-		if s.Payment.Coin != "POLIS" {
+		// Processor should only validate Payment coin if tx comes from or to POLIS
+		// Conditional statement is logic for the negation for "if its from or to polis"
+		if s.Payment.Coin != "POLIS" && s.FeePayment.Coin != "POLIS" {
 			feeCoinConfig, err := coinfactory.GetCoin(s.FeePayment.Coin)
 			if err != nil {
 				fmt.Println("Unable to get fee coin configuration: " + err.Error())
@@ -183,8 +183,7 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 		}
 		_, err := p.Plutus.SubmitPayment(paymentBody)
 		if err != nil {
-			fmt.Println(err)
-			fmt.Println("unable to submit refund payment - 186")
+			fmt.Println("unable to submit refund payment")
 			continue
 		}
 		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)

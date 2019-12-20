@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -95,52 +94,49 @@ func (p *PlutusRequests) GetNewPaymentAddress(coin string) (addr string, err err
 	return response, nil
 }
 
-func (p *PlutusRequests) DecodeRawTx(coin string, rawTx string) (txInfo interface{}, err error) {
-	req, err := mvt.CreateMVTToken("POST", plutus.ProductionURL+"/decode/"+coin, "tyche", os.Getenv("MASTER_PASSWORD"), rawTx, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (p *PlutusRequests) ValidateRawTx(body plutus.ValidateRawTxReq) (valid bool, err error) {
+	req, err := mvt.CreateMVTToken("POST", plutus.ProductionURL+"/validate/tx", "tyche", os.Getenv("MASTER_PASSWORD"), body, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
-		log.Println("Plutus - 101")
-		log.Println(err)
-		return nil, err
+		return false, err
 	}
+	
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
+
 	res, err := client.Do(req)
 	if err != nil {
-		log.Println("Plutus - 110")
-		log.Println(err)
-		return nil, err
+		return false, err
 	}
+
 	defer res.Body.Close()
 	tokenResponse, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	log.Println("Plutus- 119")
-	log.Println(string(tokenResponse))
+
 	var tokenString string
 	err = json.Unmarshal(tokenResponse, &tokenString)
 	if err != nil {
-		log.Println("Plutus - 123")
-		log.Println(err)
-		return nil, err
+		return false, err
 	}
-	log.Println("Plutus- 124")
+
 	headerSignature := res.Header.Get("service")
 	if headerSignature == "" {
-		return nil, err
+		return false, err
 	}
+
 	valid, payload := mrt.VerifyMRTToken(headerSignature, tokenString, os.Getenv("PLUTUS_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	if !valid {
-		return nil, err
+		return false, err
 	}
-	log.Println("Plutus- 132")
-	var response interface{}
+
+	var response bool
 	err = json.Unmarshal(payload, &response)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	log.Println("Plutus - 138")
+
 	return response, nil
 }
 

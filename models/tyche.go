@@ -40,10 +40,12 @@ type PrepareShiftInfo struct {
 type PaymentInfo struct {
 	Address string `json:"address"`
 	Amount  int64  `json:"amount"`
+	HasFee  bool   `json:"has_fee"`
 }
 
 type StoreShift struct {
 	RawTX      string `json:"raw_tx"`
 	FeeTX      string `json:"fee_tx"`
 	RefundAddr string `json:"refund_addr"`
+	HasFee     bool   `json:"has_fee"`
 }

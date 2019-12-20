@@ -13,7 +13,6 @@ import (
 	"github.com/grupokindynos/common/jwt"
 	"github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/processor"
-	"github.com/grupokindynos/tyche/services"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -22,6 +21,7 @@ import (
 	"github.com/grupokindynos/common/responses"
 	"github.com/grupokindynos/common/tokens/ppat"
 	"github.com/grupokindynos/tyche/controllers"
+	"github.com/grupokindynos/tyche/services"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"
@@ -29,7 +29,6 @@ import (
 
 func init() {
 	_ = godotenv.Load()
-
 }
 
 type CurrentTime struct {
@@ -46,7 +45,7 @@ var (
 
 var (
 	hestiaEnv       string
-	txsAvailable    bool
+	noTxsAvailable  bool
 	skipValidations bool
 )
 
@@ -69,7 +68,7 @@ func main() {
 		hestiaEnv = "HESTIA_LOCAL_URL"
 
 		// check if testing flags were set
-		txsAvailable = *noTxs
+		noTxsAvailable = *noTxs
 		skipValidations = *skipVal
 
 	} else {
@@ -91,10 +90,6 @@ func main() {
 		go timer()
 	}
 
-	if os.Getenv("PORT") != "" {
-		*port = os.Getenv("PORT")
-	}
-
 	App := GetApp()
 	_ = App.Run(":" + *port)
 }
@@ -110,7 +105,14 @@ func GetApp() *gin.Engine {
 }
 
 func ApplyRoutes(r *gin.Engine) {
-	tycheCtrl := &controllers.TycheController{PrepareShifts: prepareShiftsMap, Hestia: &services.HestiaRequests{HestiaURL: hestiaEnv}, Plutus: &services.PlutusRequests{}, Obol: &obol.ObolRequest{}}
+	tycheCtrl := &controllers.TycheController{
+		PrepareShifts: prepareShiftsMap,
+		TxsAvailable:  !noTxsAvailable,
+		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
+		Plutus:        &services.PlutusRequests{},
+		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+	}
+
 	go checkAndRemoveShifts(tycheCtrl)
 	api := r.Group("/")
 	{
@@ -182,7 +184,13 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	proc := processor.Processor{Hestia: &services.HestiaRequests{HestiaURL: hestiaEnv}, Plutus: &services.PlutusRequests{}, HestiaURL: hestiaEnv, SkipValidations: skipValidations}
+	proc := processor.Processor{
+		Hestia:          &services.HestiaRequests{HestiaURL: hestiaEnv},
+		Plutus:          &services.PlutusRequests{},
+		HestiaURL:       hestiaEnv,
+		SkipValidations: skipValidations,
+	}
+
 	go runCronMinutes(1, proc.Start, &wg) // 1 minute
 	wg.Wait()
 }
