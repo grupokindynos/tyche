@@ -71,17 +71,19 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if !selectedCoin.Shift.Available {
 		return nil, err
 	}
-
+	obolReq := obol.ObolRequest{
+		ObolURL: "https://obol.polispay.com",
+	}
 	amountHandler := amount.AmountType(prepareData.Amount)
-	rate, err := obol.GetCoin2CoinRatesWithAmount(obol.ProductionURL, prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
+	rate, err := obolReq.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
 		return nil, err
 	}
-	coinRates, err := obol.GetCoinRates(obol.ProductionURL, prepareData.FromCoin)
+	coinRates, err := obolReq.GetCoinRates(prepareData.FromCoin)
 	if err != nil {
 		return nil, err
 	}
-	polisRates, err := obol.GetCoinRates(obol.ProductionURL, "POLIS")
+	polisRates, err := obolReq.GetCoinRates("POLIS")
 	if err != nil {
 		return nil, err
 	}
