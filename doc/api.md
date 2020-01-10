@@ -19,9 +19,9 @@ POST prepare/
 ```
 
 Request Body
-|    Name    |  Type  | Required |                                            Description                                            |
-|:----------:|:------:|:--------:|:-------------------------------------------------------------------------------------------------:|
-| from_coin  | string |     Y    | The input coin converting from.                                                                   |
-| to_coin    | string |     Y    | The target coin to convert to.                                                                    |
-| amount     | int    |     Y    | Amount of from_coin to exchange in satoshis.                                                      |
-| to_address | string |     Y    | The address that will receive the converted amount. Address must correspond to a to_coin address. |
+| Name       | Type   | Required | Description                                                                                       |
+|------------|--------|----------|---------------------------------------------------------------------------------------------------|
+| from_coin  | string | Y        | The input coin converting from.                                                                   |
+| to_coin    | string | Y        | The target coin to convert to.                                                                    |
+| amount     | int    | Y        | Amount of from_coin to exchange in satoshis.                                                      |
+| to_address | string | Y        | The address that will receive the converted amount. Address must correspond to a to_coin address. |
