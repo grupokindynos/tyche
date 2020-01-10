@@ -19,6 +19,7 @@ POST prepare/
 ```
 
 Request Body
+
 | Name       | Type   | Required | Description                                                                                       |
 |------------|--------|----------|---------------------------------------------------------------------------------------------------|
 | from_coin  | string | Y        | The input coin converting from.                                                                   |
