@@ -59,7 +59,7 @@ func main() {
 	skipVal := flag.Bool("skip-val", false, "set this flag to avoid validations on txs."+
 		"IMPORTANT: -local flag needs to be set in order to use this.")
 	stopProcessor := flag.Bool("stop-proc", false, "set this flag to stop the automatic run of processor")
-	port := flag.String("port", "8080", "set different port for local run")
+	port := flag.String("port", os.Getenv("PORT"), "set different port for local run")
 
 	flag.Parse()
 
