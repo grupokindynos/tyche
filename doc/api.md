@@ -3,7 +3,7 @@
 https://tyche.polispay.com
 
 ## HTTP Return Codes
-* HTTP `401: Failed authorization on request.
+* HTTP `401`: Failed authorization on request.
 
 ## Security Type
 * PPAT
@@ -13,7 +13,7 @@ https://tyche.polispay.com
 
 ### Prepare
 Requests Shift shift data. Creates a shift order in the serves which is saved for 5 minutes. During this time window the rate contained in the response will be guaranteed.
-
+``
 ```
 POST prepare/
 ```
