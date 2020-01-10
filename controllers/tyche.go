@@ -76,7 +76,9 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if !selectedCoin.Shift.Available {
 		return nil, err
 	}
-
+	obolReq := obol.ObolRequest{
+		ObolURL: "https://obol.polispay.com",
+	}
 	amountHandler := amount.AmountType(prepareData.Amount)
 	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
