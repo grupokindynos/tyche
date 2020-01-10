@@ -26,11 +26,10 @@ go build && ./tyche
 go run main.go
 ```
 
-Make sure the port is configured under en enviroment variable `PORT=8080`
+Make sure the port is configured under en environment variable `PORT=8080`
 
 ## API Reference
-
-@TODO
+Refer to the [reference docs](doc/api.md).
 
 ## Testing
 
