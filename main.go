@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,9 +17,11 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/grupokindynos/common/hestia"
+	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/responses"
 	"github.com/grupokindynos/common/tokens/ppat"
 	"github.com/grupokindynos/tyche/controllers"
+	"github.com/grupokindynos/tyche/services"
 
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/joho/godotenv"
@@ -39,22 +43,55 @@ var (
 	prepareShiftsMap = make(map[string]models.PrepareShiftInfo)
 )
 
+var (
+	hestiaEnv       string
+	noTxsAvailable  bool
+	skipValidations bool
+)
+
 const prepareShiftTimeframe = 60 * 5 // 5 minutes
 
 func main() {
+	// Read input flag
+	localRun := flag.Bool("local", false, "set this flag to run tyche with local requests")
+	noTxs := flag.Bool("no-txs", false, "set this flag to avoid txs being executed"+
+		"IMPORTANT: -local flag needs to be set in order to use this.")
+	skipVal := flag.Bool("skip-val", false, "set this flag to avoid validations on txs."+
+		"IMPORTANT: -local flag needs to be set in order to use this.")
+	stopProcessor := flag.Bool("stop-proc", false, "set this flag to stop the automatic run of processor")
+	port := flag.String("port", os.Getenv("PORT"), "set different port for local run")
+
+	flag.Parse()
+
+	// If flag was set, change the hestia request url to be local
+	if *localRun {
+		hestiaEnv = "HESTIA_LOCAL_URL"
+
+		// check if testing flags were set
+		noTxsAvailable = *noTxs
+		skipValidations = *skipVal
+
+	} else {
+		hestiaEnv = "HESTIA_PRODUCTION_URL"
+		if *noTxs || *skipVal {
+			fmt.Println("cannot set testing flags without -local flag")
+			os.Exit(1)
+		}
+	}
+
 	currTime = CurrentTime{
 		Hour:   time.Now().Hour(),
 		Day:    time.Now().Day(),
 		Minute: time.Now().Minute(),
 		Second: time.Now().Second(),
 	}
-	go timer()
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+
+	if !*stopProcessor {
+		go timer()
 	}
+
 	App := GetApp()
-	_ = App.Run(":" + port)
+	_ = App.Run(":" + *port)
 }
 
 func GetApp() *gin.Engine {
@@ -68,7 +105,14 @@ func GetApp() *gin.Engine {
 }
 
 func ApplyRoutes(r *gin.Engine) {
-	tycheCtrl := &controllers.TycheController{PrepareShifts: prepareShiftsMap}
+	tycheCtrl := &controllers.TycheController{
+		PrepareShifts: prepareShiftsMap,
+		TxsAvailable:  !noTxsAvailable,
+		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
+		Plutus:        &services.PlutusRequests{},
+		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+	}
+
 	go checkAndRemoveShifts(tycheCtrl)
 	api := r.Group("/")
 	{
@@ -101,7 +145,7 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte, par
 			return
 		}
 	}
-	valid, payload, uid, err := ppat.VerifyPPATToken(hestia.ProductionURL, "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
+	valid, payload, uid, err := ppat.VerifyPPATToken(os.Getenv(hestiaEnv), "tyche", os.Getenv("MASTER_PASSWORD"), fbToken, ReqBody.Payload, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"), os.Getenv("HESTIA_PUBLIC_KEY"))
 	if !valid {
 		responses.GlobalResponseNoAuth(c)
 		return
@@ -140,7 +184,14 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go runCronMinutes(1, processor.Start, &wg) // 1 minute
+	proc := processor.Processor{
+		Hestia:          &services.HestiaRequests{HestiaURL: hestiaEnv},
+		Plutus:          &services.PlutusRequests{},
+		HestiaURL:       hestiaEnv,
+		SkipValidations: skipValidations,
+	}
+
+	go runCronMinutes(1, proc.Start, &wg) // 1 minute
 	wg.Wait()
 }
 
