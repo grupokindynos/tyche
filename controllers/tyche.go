@@ -224,7 +224,6 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 	if err != nil {
 		return nil, err
 	}
-
 	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
 	return shiftid, nil
 }
@@ -243,11 +242,16 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			Address: shiftData.FeePayment.Address,
 		}
 		valid, err := s.Plutus.ValidateRawTx(body)
+
 		if err != nil {
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, _ = s.Hestia.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShift(shiftData)
+			if err != nil {
+				return
+			}
 			return
 		}
+
 		if !valid {
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
 			_, err = s.Hestia.UpdateShift(shiftData)
@@ -256,6 +260,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			}
 			return
 		}
+
 		// Broadcast fee rawTx
 		polisCoinConfig, err := coinfactory.GetCoin("POLIS")
 		if err != nil {
