@@ -99,7 +99,7 @@ func (p *PlutusRequests) ValidateRawTx(body plutus.ValidateRawTxReq) (valid bool
 	if err != nil {
 		return false, err
 	}
-	
+
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}

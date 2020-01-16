@@ -250,7 +250,7 @@ func (p *Processor) getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error)
 }
 
 func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
-	resp, err := http.Get(coinConfig.BlockExplorer + "/api/v1/tx/" + txid)
+	resp, err := http.Get(coinConfig.Info.Blockbook + "/api/v1/tx/" + txid)
 	if err != nil {
 		return 0, err
 	}

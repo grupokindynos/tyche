@@ -353,7 +353,7 @@ func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (txi
 		return "not published due no-txs flag", nil
 	}
 
-	resp, err := http.Get(coinConfig.BlockExplorer + "/api/v2/sendtx/" + rawTx)
+	resp, err := http.Get(coinConfig.Info.Blockbook + "/api/v2/sendtx/" + rawTx)
 	if err != nil {
 		return "", err
 	}
