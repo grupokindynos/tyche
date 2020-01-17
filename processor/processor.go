@@ -176,6 +176,18 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 		return
 	}
 	for _, shift := range shifts {
+		if shift.Payment.Coin == "POLIS" {
+			paymentBody := plutus.SendAddressBodyReq{
+				Address: shift.RefundAddr,
+				Coin:    "POLIS",
+				Amount:  amount.AmountType(shift.Payment.Amount).ToNormalUnit(),
+			}
+			_, err := p.Plutus.SubmitPayment(paymentBody)
+			if err != nil {
+				fmt.Println("unable to submit refund payment")
+				continue
+			}
+		}
 		paymentBody := plutus.SendAddressBodyReq{
 			Address: shift.RefundAddr,
 			Coin:    "POLIS",

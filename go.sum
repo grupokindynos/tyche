@@ -77,8 +77,8 @@ github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoA
 github.com/grpc-ecosystem/go-grpc-middleware v1.0.0/go.mod h1:FiyG127CGDf3tlThmgyCl78X/SZQqEOJBCDaAfeWzPs=
 github.com/grpc-ecosystem/grpc-gateway v1.9.4/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grpc-ecosystem/grpc-gateway v1.9.6/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
-github.com/grupokindynos/common v0.0.0-20200116184137-b26142d1dccd h1:Cgpm6nktsTCNoCPOWHE3GQ+PQS+xjBPxcctN36rJ+jk=
-github.com/grupokindynos/common v0.0.0-20200116184137-b26142d1dccd/go.mod h1:a07U9nSnk1IOH5FzDJKq+glpD08Az5RshbW3nIw+IlI=
+github.com/grupokindynos/common v0.0.0-20200117010957-aa75e37a9374 h1:r7EESozmOgRRDAZccEs4jeI6xZjvjCGaprAjfXTb2NM=
+github.com/grupokindynos/common v0.0.0-20200117010957-aa75e37a9374/go.mod h1:a07U9nSnk1IOH5FzDJKq+glpD08Az5RshbW3nIw+IlI=
 github.com/grupokindynos/ogen-utils v0.0.0-20191231185057-013d602e50bd h1:jaa30PtdPBQ8KPkuxLTpJTzdOvgRdr2sZrClrErlfwo=
 github.com/grupokindynos/ogen-utils v0.0.0-20191231185057-013d602e50bd/go.mod h1:YRceCfzbrvndLCynQkYkHm6QXBAveskFuJx6rTo5e5I=
 github.com/grupokindynos/olympus-utils v0.0.0-20191114150906-5c358df85e5c h1:6CSFnEkKH1eAs9FqS2DNqksoSPNYfVE05riAx5cg6ME=
