@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/common/blockbook"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
@@ -11,10 +12,8 @@ import (
 	"github.com/grupokindynos/common/tokens/mrt"
 	"github.com/grupokindynos/common/tokens/mvt"
 	"github.com/grupokindynos/olympus-utils/amount"
-	"github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/services"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -262,18 +261,10 @@ func (p *Processor) getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error)
 }
 
 func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
-	resp, err := http.Get(coinConfig.Info.Blockbook + "/api/v1/tx/" + txid)
+	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	txData, err := blockbookWrapper.GetTx(txid)
 	if err != nil {
 		return 0, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	var response models.BlockbookTxInfo
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return 0, err
-	}
-	return response.Confirmations, nil
+	return txData.Confirmations, nil
 }

@@ -3,9 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"log"
-	"net/http"
+	"github.com/grupokindynos/common/blockbook"
 	"sync"
 	"time"
 
@@ -352,24 +350,8 @@ func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (txi
 	if !s.TxsAvailable {
 		return "not published due no-txs flag", nil
 	}
-
-	resp, err := http.Get(coinConfig.Info.Blockbook + "/api/v2/sendtx/" + rawTx)
-	if err != nil {
-		return "", err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	var response models.BlockbookBroadcastResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", err
-	}
-	if response.Error != "" {
-		return "", errors.New(response.Error)
-	}
-	return response.Result, nil
+	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	return blockbookWrapper.SendTx(rawTx)
 }
 
 func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfo) {
