@@ -227,8 +227,6 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 }
 
 func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftData models.PrepareShiftInfo, rawTx string, feeTx string) {
-	var feeTxId string
-
 	// Only decode raw transaction if tx does not come from or to POLIS
 	// Conditional statement is logic for the negation for "if its from or to polis"
 	if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
@@ -270,7 +268,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			}
 			return
 		}
-		feeTxId, err = s.broadCastTx(polisCoinConfig, feeTx)
+		feeTxId, err := s.broadCastTx(polisCoinConfig, feeTx)
 		if err != nil {
 			// If broadcast fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -280,6 +278,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			}
 			return
 		}
+		shiftData.FeePayment.Txid = feeTxId
 	}
 	// Validate Payment RawTx
 	body := plutus.ValidateRawTxReq{
@@ -339,7 +338,6 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	}
 	// Update shift model include txid.
 	shiftData.Payment.Txid = paymentTxid
-	shiftData.FeePayment.Txid = feeTxId
 	_, err = s.Hestia.UpdateShift(shiftData)
 	if err != nil {
 		return
