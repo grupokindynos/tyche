@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/json"
 	"errors"
+	"github.com/grupokindynos/ogen-utils/amount"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/grupokindynos/common/obol"
 	obolMocks "github.com/grupokindynos/common/obol/mocks"
 	"github.com/grupokindynos/common/plutus"
-	"github.com/grupokindynos/olympus-utils/amount"
 	"github.com/grupokindynos/tyche/controllers"
 	"github.com/grupokindynos/tyche/mocks"
 	"github.com/grupokindynos/tyche/models"

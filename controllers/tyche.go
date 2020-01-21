@@ -16,7 +16,6 @@ import (
 
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/utils"
-	"github.com/grupokindynos/olympus-utils/amount"
 	"github.com/grupokindynos/tyche/services"
 )
 
