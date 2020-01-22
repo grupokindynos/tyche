@@ -3,7 +3,7 @@ package test
 import (
 	"encoding/json"
 	"errors"
-	"github.com/grupokindynos/ogen-utils/amount"
+	"github.com/olympus-protocol/ogen/utils/amount"
 	"testing"
 	"time"
 
