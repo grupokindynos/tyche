@@ -146,7 +146,7 @@ func (p *PlutusRequests) SubmitPayment(body plutus.SendAddressBodyReq) (txid str
 		return txid, err
 	}
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 60 * time.Second,
 	}
 	res, err := client.Do(req)
 	if err != nil {
