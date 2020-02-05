@@ -161,7 +161,7 @@ func TestPrepare(t *testing.T) {
 	gomock.InOrder(
 		mockHestiaService.EXPECT().GetShiftStatus().Return(hestiaAvailable, nil),
 		mockHestiaService.EXPECT().GetCoinsConfig().Return(coinsConfig, nil),
-		mockObolService.EXPECT().GetCoin2CoinRatesWithAmount(gomock.Eq(prepareData.FromCoin), gomock.Eq(prepareData.ToCoin), gomock.Eq(amountHandler.String())).Return(coin2CoinResponse, nil),
+		mockObolService.EXPECT().GetCoin2CoinRatesWithAmount(gomock.Eq(prepareData.ToCoin), gomock.Eq(prepareData.FromCoin), gomock.Eq(amountHandler.String())).Return(coin2CoinResponse, nil),
 		mockObolService.EXPECT().GetCoinRates(gomock.Eq(prepareData.FromCoin)).Return(coinsRate, nil),
 		mockObolService.EXPECT().GetCoinRates(gomock.Eq("POLIS")).Return(coinsRate, nil),
 		mockPlutusService.EXPECT().GetNewPaymentAddress(gomock.Eq(prepareData.FromCoin)).Return(paymentAddress, nil),

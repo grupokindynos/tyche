@@ -47,6 +47,7 @@ var (
 	hestiaEnv       string
 	noTxsAvailable  bool
 	skipValidations bool
+	devMode			bool
 )
 
 const prepareShiftTimeframe = 60 * 5 // 5 minutes
@@ -60,6 +61,7 @@ func main() {
 		"IMPORTANT: -local flag needs to be set in order to use this.")
 	stopProcessor := flag.Bool("stop-proc", false, "set this flag to stop the automatic run of processor")
 	port := flag.String("port", os.Getenv("PORT"), "set different port for local run")
+	dev := flag.Bool("dev", false, "return status as available")
 
 	flag.Parse()
 
@@ -78,6 +80,8 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	devMode = *dev
 
 	currTime = CurrentTime{
 		Hour:   time.Now().Hour(),
@@ -111,6 +115,7 @@ func ApplyRoutes(r *gin.Engine) {
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
 		Plutus:        &services.PlutusRequests{},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+		DevMode:	   devMode,
 	}
 
 	go checkAndRemoveShifts(tycheCtrl)

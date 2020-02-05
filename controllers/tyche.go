@@ -27,9 +27,13 @@ type TycheController struct {
 	Hestia        services.HestiaService
 	Plutus        services.PlutusService
 	Obol          obol.ObolService
+	DevMode 	  bool
 }
 
 func (s *TycheController) Status(uid string, payload []byte, params models.Params) (interface{}, error) {
+	if s.DevMode {
+		return true, nil
+	}
 	status, err := s.Hestia.GetShiftStatus()
 	if err != nil {
 		return nil, err
@@ -55,9 +59,12 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if err != nil {
 		return nil, err
 	}
-	if !status.Shift.Service {
-		return nil, err
+	if !s.DevMode {
+		if !status.Shift.Service {
+			return nil, err
+		}
 	}
+
 	coinsConfig, err := s.Hestia.GetCoinsConfig()
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		return nil, err
 	}
 	amountHandler := amount.AmountType(prepareData.Amount)
-	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
+	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.ToCoin, prepareData.FromCoin, amountHandler.String())
 	if err != nil {
 		return nil, err
 	}
