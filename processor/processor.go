@@ -186,6 +186,13 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 				fmt.Println("unable to submit refund payment")
 				continue
 			}
+			shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
+			_, err = p.Hestia.UpdateShift(shift)
+			if err != nil {
+				fmt.Println("unable to update shift")
+				continue
+			}
+			continue
 		}
 		paymentBody := plutus.SendAddressBodyReq{
 			Address: shift.RefundAddr,
