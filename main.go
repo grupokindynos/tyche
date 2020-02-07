@@ -61,7 +61,7 @@ func main() {
 		"IMPORTANT: -local flag needs to be set in order to use this.")
 	stopProcessor := flag.Bool("stop-proc", false, "set this flag to stop the automatic run of processor")
 	port := flag.String("port", os.Getenv("PORT"), "set different port for local run")
-	dev := flag.Bool("dev", false, "return status as available")
+	dev := flag.Bool("dev", false, "return status as always available")
 
 	flag.Parse()
 

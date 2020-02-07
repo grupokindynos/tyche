@@ -82,7 +82,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		return nil, err
 	}
 	amountHandler := amount.AmountType(prepareData.Amount)
-	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.ToCoin, prepareData.FromCoin, amountHandler.String())
+	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if err != nil {
 		return nil, err
 	}
-	ToAmount, err := amount.NewAmount(amountHandler.ToNormalUnit() / rateAmountHandler.ToNormalUnit())
+	ToAmount, err := amount.NewAmount(amountHandler.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
 	if err != nil {
 		return nil, err
 	}

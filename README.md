@@ -26,6 +26,7 @@ go build && ./tyche
 go run main.go
 ```
 
+Make sure the port is configured under en environment variable `PORT=8080`
 ## Running flags
 ```
 -local
@@ -60,9 +61,14 @@ WARNING: -local flag must be set in order to use this flag.
 Set this flag to skip validations on txs (currently just skipping the minimum amount of confirmations required to process a tx)
 WARNING: -local flag must be set in order to use this flag.
 
-## API Reference
 
-@TODO
+```
+-dev
+```
+
+Set this flag to skip service availability checking on hestia. For development and debugging purposes. Meant to enable development when the services are down.
+## API Reference
+Refer to the [reference docs](doc/api.md).
 
 ## Testing
 
