@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/olympus-protocol/ogen/utils/amount"
 	"testing"
 	"time"
@@ -121,7 +122,7 @@ func TestPrepare(t *testing.T) {
 
 	amountHandler := amount.AmountType(prepareData.Amount)
 	rateAmountHandler, _ := amount.NewAmount(coin2CoinResponse.AveragePrice)
-	ToAmount, _ := amount.NewAmount(amountHandler.ToNormalUnit() / rateAmountHandler.ToNormalUnit())
+	ToAmount, _ := amount.NewAmount(amountHandler.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
 
 	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
@@ -161,7 +162,7 @@ func TestPrepare(t *testing.T) {
 	gomock.InOrder(
 		mockHestiaService.EXPECT().GetShiftStatus().Return(hestiaAvailable, nil),
 		mockHestiaService.EXPECT().GetCoinsConfig().Return(coinsConfig, nil),
-		mockObolService.EXPECT().GetCoin2CoinRatesWithAmount(gomock.Eq(prepareData.ToCoin), gomock.Eq(prepareData.FromCoin), gomock.Eq(amountHandler.String())).Return(coin2CoinResponse, nil),
+		mockObolService.EXPECT().GetCoin2CoinRatesWithAmount(gomock.Eq(prepareData.FromCoin), gomock.Eq(prepareData.ToCoin), gomock.Eq(amountHandler.String())).Return(coin2CoinResponse, nil),
 		mockObolService.EXPECT().GetCoinRates(gomock.Eq(prepareData.FromCoin)).Return(coinsRate, nil),
 		mockObolService.EXPECT().GetCoinRates(gomock.Eq("POLIS")).Return(coinsRate, nil),
 		mockPlutusService.EXPECT().GetNewPaymentAddress(gomock.Eq(prepareData.FromCoin)).Return(paymentAddress, nil),
@@ -175,6 +176,8 @@ func TestPrepare(t *testing.T) {
 	}
 
 	if response != prepareResponse {
+		fmt.Println(response)
+		fmt.Println(prepareResponse)
 		t.Fatal("Test returned response - returned response doesn't match")
 	}
 
