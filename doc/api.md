@@ -68,3 +68,39 @@ Response
     "shiftid":"uuid"
 }
 ```
+
+### Balance
+Retrieves available amounts on the Hot Wallets.
+
+```
+GET balance/:coin
+```
+
+Parameters
+
+| Name       | Required | Description                                                                                       |
+|------------|----------|---------------------------------------------------------------------------------------------------|
+| coin  | Y        | The serialized transaction for the payment.                                                                   |
+
+
+Response
+```
+{
+    "confirmed": 0.00000000,
+    "unconfirmed": 0.00000000
+}
+```
+
+### Status
+Retrieves the status of the service.
+
+```
+GET status/
+```
+
+Response
+```
+{
+    "service": true
+}
+```
