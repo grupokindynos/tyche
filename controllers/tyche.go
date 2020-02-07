@@ -3,12 +3,12 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/grupokindynos/common/plutus"
-	"io/ioutil"
-	"log"
-	"net/http"
+	"github.com/grupokindynos/common/blockbook"
+	"github.com/olympus-protocol/ogen/utils/amount"
 	"sync"
 	"time"
+
+	"github.com/grupokindynos/common/plutus"
 
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
@@ -17,17 +17,24 @@ import (
 
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/utils"
-	"github.com/grupokindynos/olympus-utils/amount"
 	"github.com/grupokindynos/tyche/services"
 )
 
 type TycheController struct {
 	PrepareShifts map[string]models.PrepareShiftInfo
 	mapLock       sync.RWMutex
+	TxsAvailable  bool
+	Hestia        services.HestiaService
+	Plutus        services.PlutusService
+	Obol          obol.ObolService
+	DevMode 	  bool
 }
 
 func (s *TycheController) Status(uid string, payload []byte, params models.Params) (interface{}, error) {
-	status, err := services.GetShiftStatus()
+	if s.DevMode {
+		return true, nil
+	}
+	status, err := s.Hestia.GetShiftStatus()
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +42,7 @@ func (s *TycheController) Status(uid string, payload []byte, params models.Param
 }
 
 func (s *TycheController) Balance(uid string, payload []byte, params models.Params) (interface{}, error) {
-	balance, err := services.GetWalletBalance(params.Coin)
+	balance, err := s.Plutus.GetWalletBalance(params.Coin)
 	if err != nil {
 		return nil, err
 	}
@@ -48,14 +55,17 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if err != nil {
 		return nil, err
 	}
-	status, err := services.GetShiftStatus()
+	status, err := s.Hestia.GetShiftStatus()
 	if err != nil {
 		return nil, err
 	}
-	if !status.Shift.Service {
-		return nil, err
+	if !s.DevMode {
+		if !status.Shift.Service {
+			return nil, err
+		}
 	}
-	coinsConfig, err := services.GetCoinsConfig()
+
+	coinsConfig, err := s.Hestia.GetCoinsConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -71,19 +81,16 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if !selectedCoin.Shift.Available {
 		return nil, err
 	}
-	obolReq := obol.ObolRequest{
-		ObolURL: "https://obol.polispay.com",
-	}
 	amountHandler := amount.AmountType(prepareData.Amount)
-	rate, err := obolReq.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
+	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
 		return nil, err
 	}
-	coinRates, err := obolReq.GetCoinRates(prepareData.FromCoin)
+	coinRates, err := s.Obol.GetCoinRates(prepareData.FromCoin)
 	if err != nil {
 		return nil, err
 	}
-	polisRates, err := obolReq.GetCoinRates("POLIS")
+	polisRates, err := s.Obol.GetCoinRates("POLIS")
 	if err != nil {
 		return nil, err
 	}
@@ -108,17 +115,17 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 	if err != nil {
 		return nil, err
 	}
-	ToAmount, err := amount.NewAmount(amountHandler.ToNormalUnit() / rateAmountHandler.ToNormalUnit())
+	ToAmount, err := amount.NewAmount(amountHandler.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
 	if err != nil {
 		return nil, err
 	}
-	paymentAddress, err := services.GetNewPaymentAddress(prepareData.FromCoin)
+	paymentAddress, err := s.Plutus.GetNewPaymentAddress(prepareData.FromCoin)
 	if err != nil {
 		return nil, err
 	}
 	var feeAddress string
 	if prepareData.FromCoin != "POLIS" {
-		feeAddress, err = services.GetNewPaymentAddress("POLIS")
+		feeAddress, err = s.Plutus.GetNewPaymentAddress("POLIS")
 		if err != nil {
 			return nil, err
 		}
@@ -216,8 +223,9 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 		PaymentProof:   "",
 		ProofTimestamp: 0,
 	}
+
 	s.RemoveShiftFromMap(uid)
-	shiftid, err := services.UpdateShift(shift)
+	shiftid, err := s.Hestia.UpdateShift(shift)
 	if err != nil {
 		return nil, err
 	}
@@ -226,8 +234,6 @@ func (s *TycheController) Store(uid string, payload []byte, params models.Params
 }
 
 func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftData models.PrepareShiftInfo, rawTx string, feeTx string) {
-	var feeTxId string
-
 	// Only decode raw transaction if tx does not come from or to POLIS
 	// Conditional statement is logic for the negation for "if its from or to polis"
 	if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
@@ -238,44 +244,48 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			Amount:  shiftData.FeePayment.Amount,
 			Address: shiftData.FeePayment.Address,
 		}
-		valid, err := services.ValidateRawTx(body)
+		valid, err := s.Plutus.ValidateRawTx(body)
+
 		if err != nil {
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = services.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShift(shiftData)
 			if err != nil {
 				return
 			}
 			return
 		}
+
 		if !valid {
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = services.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShift(shiftData)
 			if err != nil {
 				return
 			}
 			return
 		}
+
 		// Broadcast fee rawTx
 		polisCoinConfig, err := coinfactory.GetCoin("POLIS")
 		if err != nil {
 			// If get coin fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = services.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShift(shiftData)
 			if err != nil {
 				return
 			}
 			return
 		}
-		feeTxId, err = broadCastTx(polisCoinConfig, feeTx)
+		feeTxId, err := s.broadCastTx(polisCoinConfig, feeTx)
 		if err != nil {
 			// If broadcast fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = services.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShift(shiftData)
 			if err != nil {
 				return
 			}
 			return
 		}
+		shiftData.FeePayment.Txid = feeTxId
 	}
 	// Validate Payment RawTx
 	body := plutus.ValidateRawTxReq{
@@ -284,7 +294,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		Amount:  shiftData.Payment.Amount,
 		Address: shiftData.Payment.Address,
 	}
-	valid, err := services.ValidateRawTx(body)
+	valid, err := s.Plutus.ValidateRawTx(body)
 	if err != nil {
 		// If decode fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -292,7 +302,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			// If decode fail and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
-		_, err = services.UpdateShift(shiftData)
+		_, err = s.Hestia.UpdateShift(shiftData)
 		if err != nil {
 			return
 		}
@@ -313,13 +323,13 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			// If get coin fail and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
-		_, err = services.UpdateShift(shiftData)
+		_, err = s.Hestia.UpdateShift(shiftData)
 		if err != nil {
 			return
 		}
 		return
 	}
-	paymentTxid, err := broadCastTx(coinConfig, rawTx)
+	paymentTxid, err := s.broadCastTx(coinConfig, rawTx)
 	if err != nil {
 		// If broadcast fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -327,7 +337,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			// If broadcast fail and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
-		_, err = services.UpdateShift(shiftData)
+		_, err = s.Hestia.UpdateShift(shiftData)
 		if err != nil {
 			return
 		}
@@ -335,31 +345,18 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	}
 	// Update shift model include txid.
 	shiftData.Payment.Txid = paymentTxid
-	shiftData.FeePayment.Txid = feeTxId
-	_, err = services.UpdateShift(shiftData)
+	_, err = s.Hestia.UpdateShift(shiftData)
 	if err != nil {
 		return
 	}
 }
 
-func broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) {
-	resp, err := http.Get(coinConfig.BlockExplorer + "/api/v2/sendtx/" + rawTx)
-	if err != nil {
-		return "", err
+func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) {
+	if !s.TxsAvailable {
+		return "not published due no-txs flag", nil
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	var response models.BlockbookBroadcastResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", err
-	}
-	if response.Error != "" {
-		return "", errors.New(response.Error)
-	}
-	return response.Result, nil
+	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	return blockbookWrapper.SendTx(rawTx)
 }
 
 func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfo) {

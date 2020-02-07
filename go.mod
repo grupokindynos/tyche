@@ -1,13 +1,13 @@
 module github.com/grupokindynos/tyche
 
-go 1.12
+go 1.13
 
 require (
 	github.com/gin-contrib/cors v1.3.0
-	github.com/gin-gonic/gin v1.4.0
-	github.com/grupokindynos/common v0.0.0-20191223192206-334396c899a3
-	github.com/grupokindynos/olympus-utils v0.0.0-20191114150906-5c358df85e5c
-	github.com/heroku/x v0.0.14
+	github.com/gin-gonic/gin v1.5.0
+	github.com/golang/mock v1.3.1
+	github.com/grupokindynos/common v0.0.0-20200206195358-eb8b81e2fa6d
+	github.com/heroku/x v0.0.16
 	github.com/joho/godotenv v1.3.0
-	gopkg.in/square/go-jose.v2 v2.4.0 // indirect
+	github.com/olympus-protocol/ogen v0.0.0-20200122020117-3da99bac25aa
 )

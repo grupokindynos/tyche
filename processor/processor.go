@@ -4,26 +4,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/common/blockbook"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/tokens/mrt"
 	"github.com/grupokindynos/common/tokens/mvt"
-	"github.com/grupokindynos/olympus-utils/amount"
-	"github.com/grupokindynos/tyche/models"
 	"github.com/grupokindynos/tyche/services"
+	"github.com/olympus-protocol/ogen/utils/amount"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 )
 
-func Start() {
+type Processor struct {
+	Hestia          services.HestiaService
+	Plutus          services.PlutusService
+	HestiaURL       string
+	SkipValidations bool
+}
+
+func (p *Processor) Start() {
 	fmt.Println("Starting Shifts Processor")
-	status, err := services.GetShiftStatus()
+	status, err := p.Hestia.GetShiftStatus()
 	if err != nil {
 		panic(err)
 	}
@@ -33,17 +39,17 @@ func Start() {
 	}
 	var wg sync.WaitGroup
 	wg.Add(4)
-	go handlePendingShifts(&wg)
-	go handleConfirmingShifts(&wg)
-	go handleConfirmedShifts(&wg)
-	go handleRefundShifts(&wg)
+	go p.handlePendingShifts(&wg)
+	go p.handleConfirmingShifts(&wg)
+	go p.handleConfirmedShifts(&wg)
+	go p.handleRefundShifts(&wg)
 	wg.Wait()
 	fmt.Println("Shifts Processor Finished")
 }
 
-func handlePendingShifts(wg *sync.WaitGroup) {
+func (p *Processor) handlePendingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
-	shifts, err := getPendingShifts()
+	shifts, err := p.getPendingShifts()
 	if err != nil {
 		fmt.Println("Pending shifts processor finished with errors: " + err.Error())
 		return
@@ -51,7 +57,7 @@ func handlePendingShifts(wg *sync.WaitGroup) {
 	for _, s := range shifts {
 		if s.Timestamp+7200 < time.Now().Unix() {
 			s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = services.UpdateShift(s)
+			_, err = p.Hestia.UpdateShift(s)
 			if err != nil {
 				fmt.Println("Unable to update shift confirmations: " + err.Error())
 				continue
@@ -59,7 +65,7 @@ func handlePendingShifts(wg *sync.WaitGroup) {
 			continue
 		}
 		s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirming)
-		_, err = services.UpdateShift(s)
+		_, err = p.Hestia.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift " + err.Error())
 			continue
@@ -67,9 +73,9 @@ func handlePendingShifts(wg *sync.WaitGroup) {
 	}
 }
 
-func handleConfirmedShifts(wg *sync.WaitGroup) {
+func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
-	shifts, err := getConfirmedShifts()
+	shifts, err := p.getConfirmedShifts()
 	if err != nil {
 		fmt.Println("Confirmed shifts processor finished with errors: " + err.Error())
 		return
@@ -81,7 +87,7 @@ func handleConfirmedShifts(wg *sync.WaitGroup) {
 			Coin:    shift.ToCoin,
 			Amount:  amountHandler.ToNormalUnit(),
 		}
-		txid, err := services.SubmitPayment(paymentData)
+		txid, err := p.Plutus.SubmitPayment(paymentData)
 		if err != nil {
 			fmt.Println("unable to submit payment")
 			continue
@@ -89,7 +95,7 @@ func handleConfirmedShifts(wg *sync.WaitGroup) {
 		shift.PaymentProof = txid
 		shift.ProofTimestamp = time.Now().Unix()
 		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusComplete)
-		_, err = services.UpdateShift(shift)
+		_, err = p.Hestia.UpdateShift(shift)
 		if err != nil {
 			fmt.Println("unable to update shift")
 			continue
@@ -97,9 +103,9 @@ func handleConfirmedShifts(wg *sync.WaitGroup) {
 	}
 }
 
-func handleConfirmingShifts(wg *sync.WaitGroup) {
+func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
-	shifts, err := getConfirmingShifts()
+	shifts, err := p.getConfirmingShifts()
 	if err != nil {
 		fmt.Println("Confirming shifts processor finished with errors: " + err.Error())
 		return
@@ -119,27 +125,27 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 				fmt.Println("Unable to get fee coin configuration: " + err.Error())
 				continue
 			}
-			// Check if shift has enough confirmations for coins that are not Polis
-			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
+			// Check if shift has enough confirmations
+			if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
 				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
-				_, err = services.UpdateShift(s)
+				_, err = p.Hestia.UpdateShift(s)
 				if err != nil {
 					fmt.Println("Unable to update shift confirmations: " + err.Error())
 					continue
 				}
 				continue
 			}
-			feeConfirmations, err := getConfirmations(feeCoinConfig, s.FeePayment.Txid)
+			feeConfirmations, err := p.getConfirmations(feeCoinConfig, s.FeePayment.Txid)
 			if err != nil {
 				fmt.Println("Unable to get fee coin confirmations: " + err.Error())
 				continue
 			}
 			s.FeePayment.Confirmations = int32(feeConfirmations)
 		} else {
-			// If shift comes from or targets polis handle only the input coin.
-			if s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
+			// Check if shift has enough confirmations
+			if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
 				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
-				_, err = services.UpdateShift(s)
+				_, err = p.Hestia.UpdateShift(s)
 				if err != nil {
 					fmt.Println("Unable to update shift confirmations: " + err.Error())
 					continue
@@ -147,13 +153,13 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 				continue
 			}
 		}
-		paymentConfirmations, err := getConfirmations(paymentCoinConfig, s.Payment.Txid)
+		paymentConfirmations, err := p.getConfirmations(paymentCoinConfig, s.Payment.Txid)
 		if err != nil {
 			fmt.Println("Unable to get payment coin confirmations: " + err.Error())
 			continue
 		}
 		s.Payment.Confirmations = int32(paymentConfirmations)
-		_, err = services.UpdateShift(s)
+		_, err = p.Hestia.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift confirmations: " + err.Error())
 			continue
@@ -161,26 +167,45 @@ func handleConfirmingShifts(wg *sync.WaitGroup) {
 	}
 }
 
-func handleRefundShifts(wg *sync.WaitGroup) {
+func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
-	shifts, err := getRefundShifts()
+	shifts, err := p.getRefundShifts()
 	if err != nil {
 		fmt.Println("Refund shifts processor finished with errors: " + err.Error())
 		return
 	}
 	for _, shift := range shifts {
+		if shift.Payment.Coin == "POLIS" {
+			paymentBody := plutus.SendAddressBodyReq{
+				Address: shift.RefundAddr,
+				Coin:    "POLIS",
+				Amount:  amount.AmountType(shift.Payment.Amount).ToNormalUnit(),
+			}
+			_, err := p.Plutus.SubmitPayment(paymentBody)
+			if err != nil {
+				fmt.Println("unable to submit refund payment")
+				continue
+			}
+			shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
+			_, err = p.Hestia.UpdateShift(shift)
+			if err != nil {
+				fmt.Println("unable to update shift")
+				continue
+			}
+			continue
+		}
 		paymentBody := plutus.SendAddressBodyReq{
 			Address: shift.RefundAddr,
 			Coin:    "POLIS",
 			Amount:  amount.AmountType(shift.FeePayment.Amount).ToNormalUnit(),
 		}
-		_, err := services.SubmitPayment(paymentBody)
+		_, err := p.Plutus.SubmitPayment(paymentBody)
 		if err != nil {
 			fmt.Println("unable to submit refund payment")
 			continue
 		}
 		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
-		_, err = services.UpdateShift(shift)
+		_, err = p.Hestia.UpdateShift(shift)
 		if err != nil {
 			fmt.Println("unable to update shift")
 			continue
@@ -188,24 +213,24 @@ func handleRefundShifts(wg *sync.WaitGroup) {
 	}
 }
 
-func getPendingShifts() ([]hestia.Shift, error) {
-	return getShifts(hestia.ShiftStatusPending)
+func (p *Processor) getPendingShifts() ([]hestia.Shift, error) {
+	return p.getShifts(hestia.ShiftStatusPending)
 }
 
-func getConfirmingShifts() ([]hestia.Shift, error) {
-	return getShifts(hestia.ShiftStatusConfirming)
+func (p *Processor) getConfirmingShifts() ([]hestia.Shift, error) {
+	return p.getShifts(hestia.ShiftStatusConfirming)
 }
 
-func getConfirmedShifts() ([]hestia.Shift, error) {
-	return getShifts(hestia.ShiftStatusConfirmed)
+func (p *Processor) getConfirmedShifts() ([]hestia.Shift, error) {
+	return p.getShifts(hestia.ShiftStatusConfirmed)
 }
 
-func getRefundShifts() ([]hestia.Shift, error) {
-	return getShifts(hestia.ShiftStatusRefund)
+func (p *Processor) getRefundShifts() ([]hestia.Shift, error) {
+	return p.getShifts(hestia.ShiftStatusRefund)
 }
 
-func getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", hestia.ProductionURL+"/shift/all?filter="+hestia.GetShiftStatusString(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (p *Processor) getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error) {
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift/all?filter="+hestia.GetShiftStatusString(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -242,19 +267,11 @@ func getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error) {
 	return response, nil
 }
 
-func getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
-	resp, err := http.Get(coinConfig.BlockExplorer + "/api/v1/tx/" + txid)
+func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
+	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	txData, err := blockbookWrapper.GetTx(txid)
 	if err != nil {
 		return 0, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	var response models.BlockbookTxInfo
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return 0, err
-	}
-	return response.Confirmations, nil
+	return txData.Confirmations, nil
 }
