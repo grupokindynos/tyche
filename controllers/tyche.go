@@ -3,10 +3,11 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/grupokindynos/common/blockbook"
-	"github.com/olympus-protocol/ogen/utils/amount"
 	"sync"
 	"time"
+
+	"github.com/grupokindynos/common/blockbook"
+	"github.com/olympus-protocol/ogen/utils/amount"
 
 	"github.com/grupokindynos/common/plutus"
 
@@ -27,7 +28,7 @@ type TycheController struct {
 	Hestia        services.HestiaService
 	Plutus        services.PlutusService
 	Obol          obol.ObolService
-	DevMode 	  bool
+	DevMode       bool
 }
 
 func (s *TycheController) Status(uid string, payload []byte, params models.Params) (interface{}, error) {
@@ -275,7 +276,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			}
 			return
 		}
-		feeTxId, err := s.broadCastTx(polisCoinConfig, feeTx)
+		feeTxID, err, _ := s.broadCastTx(polisCoinConfig, feeTx)
 		if err != nil {
 			// If broadcast fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -285,7 +286,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 			}
 			return
 		}
-		shiftData.FeePayment.Txid = feeTxId
+		shiftData.FeePayment.Txid = feeTxID
 	}
 	// Validate Payment RawTx
 	body := plutus.ValidateRawTxReq{
@@ -329,7 +330,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		}
 		return
 	}
-	paymentTxid, err := s.broadCastTx(coinConfig, rawTx)
+	paymentTxid, err, message := s.broadCastTx(coinConfig, rawTx)
 	if err != nil {
 		// If broadcast fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -343,6 +344,7 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 		}
 		return
 	}
+	shiftData.Message = message
 	// Update shift model include txid.
 	shiftData.Payment.Txid = paymentTxid
 	_, err = s.Hestia.UpdateShift(shiftData)
@@ -351,12 +353,12 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 	}
 }
 
-func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (txid string, err error) {
+func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (string, error, string) {
 	if !s.TxsAvailable {
-		return "not published due no-txs flag", nil
+		return "not published due no-txs flag", nil, ""
 	}
 	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	return blockbookWrapper.SendTx(rawTx)
+	return blockbookWrapper.SendTxWithMessage(rawTx)
 }
 
 func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfo) {
