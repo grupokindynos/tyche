@@ -126,7 +126,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 				continue
 			}
 			// Check if shift has enough confirmations
-			if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations) {
+			if p.SkipValidations || (s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations)) {
 				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
 				_, err = p.Hestia.UpdateShift(s)
 				if err != nil {
