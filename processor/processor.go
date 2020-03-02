@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -153,6 +154,16 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 				continue
 			}
 		}
+
+		if s.Payment.Txid == "" {
+			// look for tx id
+			s.Payment.Txid, err = getMissingTxId(paymentCoinConfig, s.Payment.Address, s.Payment.Amount)
+			if err != nil {
+				fmt.Println("Unable to get payment txid: " + err.Error())
+				continue
+			}
+			_, err = p.Hestia.UpdateShift(s)
+		}
 		paymentConfirmations, err := p.getConfirmations(paymentCoinConfig, s.Payment.Txid)
 		if err != nil {
 			fmt.Println("Unable to get payment coin confirmations: " + err.Error())
@@ -274,4 +285,27 @@ func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, 
 		return 0, err
 	}
 	return txData.Confirmations, nil
+}
+
+func getMissingTxId(coinConfig *coins.Coin, address string, amount int64) (string, error){
+	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	addressData, err := blockbookWrapper.GetAddress(address)
+	if err != nil {
+		return "", err
+	}
+	for _, txId := range addressData.Txids {
+		tx, err := blockbookWrapper.GetTx(txId)
+		if err != nil {
+			return "", err
+		}
+		for _, vout := range tx.Vout {
+			for _, voutAddress := range vout.Addresses {
+				voutValue, _ := strconv.ParseInt(vout.Value, 10, 64)
+				if voutAddress == address &&  voutValue == amount {
+					return txId, nil
+				}
+			}
+		}
+	}
+	return "", errors.New("txid not found")
 }
