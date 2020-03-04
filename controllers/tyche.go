@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"github.com/gin-gonic/gin"
 	"sync"
 	"time"
 
@@ -381,4 +382,13 @@ func (s *TycheController) RemoveShiftFromMap(uid string) {
 	s.mapLock.Lock()
 	delete(s.PrepareShifts, uid)
 	s.mapLock.Unlock()
+}
+
+func (s *TycheController) OpenBalance(c *gin.Context) {
+	balance, err := s.Plutus.GetWalletBalance(c.Param("coin"))
+	if err != nil {
+		return
+	}
+	c.JSON(200, balance)
+	return
 }

@@ -130,6 +130,15 @@ func ApplyRoutes(r *gin.Engine) {
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")
 	})
+
+	username := os.Getenv("OPEN_API_USER")
+	password := os.Getenv("OPEN_API_PASSWORD")
+	openApi := r.Group("/shift/open/", gin.BasicAuth(gin.Accounts{
+		username: password,
+	}))
+	{
+		openApi.GET("balance/:coin", tycheCtrl.OpenBalance)
+	}
 }
 
 func ValidateRequest(c *gin.Context, method func(uid string, payload []byte, params models.Params) (interface{}, error)) {
