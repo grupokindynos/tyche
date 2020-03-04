@@ -9,6 +9,7 @@ import (
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/plutus"
+	"github.com/grupokindynos/common/telegram"
 	"github.com/grupokindynos/common/tokens/mrt"
 	"github.com/grupokindynos/common/tokens/mvt"
 	"github.com/grupokindynos/tyche/services"
@@ -27,8 +28,11 @@ type Processor struct {
 	SkipValidations bool
 }
 
+var telegramBot telegram.TelegramBot
+
 func (p *Processor) Start() {
 	fmt.Println("Starting Shifts Processor")
+	telegramBot = telegram.NewTelegramBot(os.Getenv("TELEGRAM_API_KEY"), os.Getenv("TELEGRAM_CHAT_ID"))
 	status, err := p.Hestia.GetShiftStatus()
 	if err != nil {
 		panic(err)
@@ -52,6 +56,7 @@ func (p *Processor) handlePendingShifts(wg *sync.WaitGroup) {
 	shifts, err := p.getPendingShifts()
 	if err != nil {
 		fmt.Println("Pending shifts processor finished with errors: " + err.Error())
+		telegramBot.SendError("Pending shifts processor finished with errors: " + err.Error())
 		return
 	}
 	for _, s := range shifts {
@@ -68,6 +73,7 @@ func (p *Processor) handlePendingShifts(wg *sync.WaitGroup) {
 		_, err = p.Hestia.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift " + err.Error())
+			telegramBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
 	}
@@ -78,6 +84,7 @@ func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 	shifts, err := p.getConfirmedShifts()
 	if err != nil {
 		fmt.Println("Confirmed shifts processor finished with errors: " + err.Error())
+		telegramBot.SendError("Confirmed shifts processor finished with errors: " + err.Error())
 		return
 	}
 	for _, shift := range shifts {
@@ -90,6 +97,7 @@ func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 		txid, err := p.Plutus.SubmitPayment(paymentData)
 		if err != nil {
 			fmt.Println("unable to submit payment")
+			telegramBot.SendError("Unable to submit payment: " + err.Error() + "\n Shift ID: " + shift.ID)
 			continue
 		}
 		shift.PaymentProof = txid
@@ -98,6 +106,7 @@ func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 		_, err = p.Hestia.UpdateShift(shift)
 		if err != nil {
 			fmt.Println("unable to update shift")
+			telegramBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
 			continue
 		}
 	}
@@ -108,6 +117,8 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 	shifts, err := p.getConfirmingShifts()
 	if err != nil {
 		fmt.Println("Confirming shifts processor finished with errors: " + err.Error())
+		telegramBot.SendError("Confirming shifts processor finished with errors: " + err.Error())
+
 		return
 	}
 	// Check confirmations and return
@@ -115,6 +126,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 		paymentCoinConfig, err := coinfactory.GetCoin(s.Payment.Coin)
 		if err != nil {
 			fmt.Println("Unable to get payment coin configuration: " + err.Error())
+			telegramBot.SendError("Unable to get payment coin configuration: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
 		// Processor should only validate Payment coin if tx comes from or to POLIS
@@ -123,6 +135,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 			feeCoinConfig, err := coinfactory.GetCoin(s.FeePayment.Coin)
 			if err != nil {
 				fmt.Println("Unable to get fee coin configuration: " + err.Error())
+				telegramBot.SendError("Unable to get fee coin configuration: " + err.Error() + "\n Shift ID: " + s.ID)
 				continue
 			}
 			// Check if shift has enough confirmations
@@ -172,6 +185,7 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 	shifts, err := p.getRefundShifts()
 	if err != nil {
 		fmt.Println("Refund shifts processor finished with errors: " + err.Error())
+		telegramBot.SendError("Refund shifts processor finished with errors: " + err.Error())
 		return
 	}
 	for _, shift := range shifts {
@@ -184,12 +198,14 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 			_, err := p.Plutus.SubmitPayment(paymentBody)
 			if err != nil {
 				fmt.Println("unable to submit refund payment")
+				telegramBot.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
 				continue
 			}
 			shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
 			_, err = p.Hestia.UpdateShift(shift)
 			if err != nil {
 				fmt.Println("unable to update shift")
+				telegramBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
 				continue
 			}
 			continue
@@ -202,12 +218,14 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 		_, err := p.Plutus.SubmitPayment(paymentBody)
 		if err != nil {
 			fmt.Println("unable to submit refund payment")
+			telegramBot.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
 			continue
 		}
 		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
 		_, err = p.Hestia.UpdateShift(shift)
 		if err != nil {
 			fmt.Println("unable to update shift")
+			telegramBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
 			continue
 		}
 	}
