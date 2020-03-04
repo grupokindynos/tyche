@@ -138,6 +138,7 @@ func ApplyRoutes(r *gin.Engine) {
 	}))
 	{
 		openApi.GET("balance/:coin", tycheCtrl.OpenBalance)
+		openApi.GET("status", tycheCtrl.OpenBalance)
 	}
 }
 
