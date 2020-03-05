@@ -151,6 +151,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 			err = checkTxId(&s.FeePayment)
 			if err != nil {
 				fmt.Println("Unable to get fee txId " + err.Error())
+				teleBot.SendError("Unable to get fee txId: " + err.Error() + "\n Shift ID: " + s.ID)
 				continue
 			}
 			feeConfirmations, err := p.getConfirmations(feeCoinConfig, s.FeePayment.Txid)
@@ -175,6 +176,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 		err = checkTxId(&s.Payment)
 		if err != nil {
 			fmt.Println("Unable to get txId " + err.Error())
+			teleBot.SendError("Unable to get txId: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
 		paymentConfirmations, err := p.getConfirmations(paymentCoinConfig, s.Payment.Txid)
@@ -321,4 +323,3 @@ func getMissingTxId(coin string, address string, amount int64) (string, error) {
 	blockBook := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
 	return blockBook.FindDepositTxId(address, amount)
 }
-

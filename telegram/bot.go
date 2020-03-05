@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"fmt"
 	"github.com/grupokindynos/common/telegram"
 	"os"
 	"sync"
@@ -32,14 +31,12 @@ func (b *Bot) SendError(msg string) {
 		if counters[0]%60 == 0 { //send message every 60 repetitions = 1 hour
 			b.telegramBot.SendError(msg)
 		}
-		fmt.Print(msg + ": ")
-		fmt.Println(counters)
+		b.cache[msg] = counters
 	} else //its an unseen error
 	{
 		b.telegramBot.SendError(msg)
 		//add new msg to cache
 		b.cache[msg] = [2]int{0, 0}
-
 	}
 	//every other message was not seen +1
 	b.updateCache(msg)
@@ -48,7 +45,8 @@ func (b *Bot) SendError(msg string) {
 func (b *Bot) updateCache(msg string) {
 	for key, value := range b.cache {
 		if key != msg {
-			value[1] = value[1] + 1
+			value[1] += 1
+			b.cache[key] = value
 		}
 		//if it was not seen 10 times, remove from cache
 		if value[1] == 10 {
