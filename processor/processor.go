@@ -148,6 +148,11 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 				}
 				continue
 			}
+			err = checkTxId(&s.FeePayment)
+			if err != nil {
+				fmt.Println("Unable to get fee txId " + err.Error())
+				continue
+			}
 			feeConfirmations, err := p.getConfirmations(feeCoinConfig, s.FeePayment.Txid)
 			if err != nil {
 				fmt.Println("Unable to get fee coin confirmations: " + err.Error())
@@ -165,6 +170,12 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 				}
 				continue
 			}
+		}
+
+		err = checkTxId(&s.Payment)
+		if err != nil {
+			fmt.Println("Unable to get txId " + err.Error())
+			continue
 		}
 		paymentConfirmations, err := p.getConfirmations(paymentCoinConfig, s.Payment.Txid)
 		if err != nil {
@@ -293,3 +304,21 @@ func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, 
 	}
 	return txData.Confirmations, nil
 }
+
+func checkTxId(payment *hestia.Payment) error {
+	if payment.Txid == "" {
+		txId, err := getMissingTxId(payment.Coin, payment.Address, payment.Amount)
+		if err != nil {
+			return err
+		}
+		payment.Txid = txId
+	}
+	return nil
+}
+
+func getMissingTxId(coin string, address string, amount int64) (string, error) {
+	coinConfig, _ := coinfactory.GetCoin(coin)
+	blockBook := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	return blockBook.FindDepositTxId(address, amount)
+}
+

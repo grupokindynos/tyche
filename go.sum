@@ -97,12 +97,10 @@ github.com/grpc-ecosystem/grpc-gateway v1.9.4/go.mod h1:vNeuVxBJEsws4ogUvrchl83t
 github.com/grpc-ecosystem/grpc-gateway v1.9.6/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grupokindynos/common v0.0.0-20200226201005-7e81b1e3b2f2 h1:ItDCHLFBdZIAAvCOSAsRuxDp+ZaO/Tdf8BlMN1Ak7/w=
 github.com/grupokindynos/common v0.0.0-20200226201005-7e81b1e3b2f2/go.mod h1:GuHK2gA5yF3hD5PjguSHuTf8f2xyEmdxoiFOFviyhng=
-github.com/grupokindynos/common v0.0.0-20200304164524-c5287d9b9e93 h1:SHsI3Mq1r5NmpEqTDqnljKt6npW0qNi7TDTGQ7c7s2w=
-github.com/grupokindynos/common v0.0.0-20200304164524-c5287d9b9e93/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
-github.com/grupokindynos/common v0.0.0-20200304175449-340b19c16ad3 h1:TCBAP0jAdFoLDwkiBUegMcJ0/UxjPqeX/1e315mjpi8=
-github.com/grupokindynos/common v0.0.0-20200304175449-340b19c16ad3/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
-github.com/grupokindynos/common v0.0.0-20200304191117-a755bdb1d7e7 h1:qnZ0EAv6PKQzSmm7mE1yf/49ypdsPq9eySa1lcfIe84=
-github.com/grupokindynos/common v0.0.0-20200304191117-a755bdb1d7e7/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
+github.com/grupokindynos/common v0.0.0-20200302024215-b5f54fe600de h1:r9MK9pE3XWJneTZUjDFvPdZavVmCtdYoQ9MawrYSXYw=
+github.com/grupokindynos/common v0.0.0-20200302024215-b5f54fe600de/go.mod h1:GuHK2gA5yF3hD5PjguSHuTf8f2xyEmdxoiFOFviyhng=
+github.com/grupokindynos/common v0.0.0-20200304192810-ad476663382c h1:Y9E3JT7CD05qhJNQ7TvJXMZ76+0nDHrwO5PHmoCXr0Y=
+github.com/grupokindynos/common v0.0.0-20200304192810-ad476663382c/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
