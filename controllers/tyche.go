@@ -3,7 +3,10 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/grupokindynos/common/responses"
+	"io/ioutil"
 	"sync"
 	"time"
 
@@ -384,6 +387,8 @@ func (s *TycheController) RemoveShiftFromMap(uid string) {
 	s.mapLock.Unlock()
 }
 
+// OpenShift
+
 func (s *TycheController) OpenBalance(c *gin.Context) {
 	balance, err := s.Plutus.GetWalletBalance(c.Param("coin"))
 	if err != nil {
@@ -391,4 +396,88 @@ func (s *TycheController) OpenBalance(c *gin.Context) {
 	}
 	c.JSON(200, balance)
 	return
+}
+
+func (s *TycheController) OpenStatus(c *gin.Context) {
+	status, err := s.Hestia.GetShiftStatus()
+	if err != nil {
+		responses.GlobalResponseError(nil, err, c)
+	}
+	c.JSON(200, status.Shift.Service)
+	return
+}
+
+func (s *TycheController) OpenPrepare(c *gin.Context) {
+	uid := c.MustGet(gin.AuthUserKey).(string)
+	payload, err := ioutil.ReadAll(c.Request.Body)
+	fmt.Println(uid)
+	if err != nil {
+		return
+	}
+	fmt.Println(payload)
+	res, err := s.Prepare(uid, payload, models.Params{})
+	c.JSON(200, res)
+	return
+}
+
+func (s *TycheController) OpenStore(uid string, payload []byte, params models.Params) (interface{}, error) {
+	var shiftPayment models.StoreShift
+	err := json.Unmarshal(payload, &shiftPayment)
+	if err != nil {
+		return nil, err
+	}
+	storedShift, err := s.GetShiftFromMap(uid)
+	if err != nil {
+		return nil, err
+	}
+
+	var feePayment hestia.Payment
+	if storedShift.FromCoin != "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       storedShift.FeePayment.Address,
+			Amount:        storedShift.FeePayment.Amount,
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
+
+	if storedShift.ToCoin == "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       "N/A",                         // no fee por Polis conversion
+			Amount:        storedShift.FeePayment.Amount, // should be aways 0.0
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
+
+	shift := hestia.Shift{
+		ID:        storedShift.ID,
+		UID:       uid,
+		Status:    hestia.GetShiftStatusString(hestia.ShiftStatusPending),
+		Timestamp: time.Now().Unix(),
+		Payment: hestia.Payment{
+			Address:       storedShift.Payment.Address,
+			Amount:        storedShift.Payment.Amount,
+			Coin:          storedShift.FromCoin,
+			Txid:          "",
+			Confirmations: 0,
+		},
+		FeePayment:     feePayment,
+		ToCoin:         storedShift.ToCoin,
+		ToAmount:       storedShift.ToAmount,
+		ToAddress:      storedShift.ToAddress,
+		RefundAddr:     shiftPayment.RefundAddr,
+		PaymentProof:   "",
+		ProofTimestamp: 0,
+	}
+
+	s.RemoveShiftFromMap(uid)
+	shiftid, err := s.Hestia.UpdateShift(shift)
+	if err != nil {
+		return nil, err
+	}
+	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
+	return shiftid, nil
 }

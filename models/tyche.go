@@ -20,6 +20,14 @@ type PrepareShiftRequest struct {
 	ToAddress string `json:"to_address"`
 }
 
+type OpenPrepareShiftRequest struct {
+	FromCoin  string `json:"from_coin"`
+	Amount    int64  `json:"amount"`
+	ToCoin    string `json:"to_coin"`
+	ToAddress string `json:"to_address"`
+	UserId    string `json:"user_id"`
+}
+
 type PrepareShiftResponse struct {
 	Payment        PaymentInfo `json:"payment"`
 	Fee            PaymentInfo `json:"fee"`
