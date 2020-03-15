@@ -108,3 +108,5 @@ Response
     "service": true
 }
 ```
+
+## Error Handling
