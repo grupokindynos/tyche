@@ -125,7 +125,15 @@ func ApplyRoutes(r *gin.Engine) {
 		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Status) })
 		api.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Prepare) })
 		api.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Store) })
+	}
+	r.NoRoute(func(c *gin.Context) {
+		c.String(http.StatusNotFound, "Not Found")
+	})
 
+	apiV2 := r.Group("/v2/")
+	{
+		apiV2.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Prepare) })
+		apiV2.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Store) })
 	}
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")
@@ -140,6 +148,7 @@ func ApplyRoutes(r *gin.Engine) {
 		openApi.GET("balance/:coin", tycheCtrl.OpenBalance)
 		openApi.GET("status", tycheCtrl.OpenStatus)
 		openApi.POST("prepare", tycheCtrl.OpenPrepare)
+		openApi.POST("new", tycheCtrl.OpenStore)
 	}
 }
 
