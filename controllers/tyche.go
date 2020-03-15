@@ -326,7 +326,7 @@ func (s *TycheController) OpenPrepare(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	res, err := s.Prepare(uid, payload, models.Params{})
+	res, err := s.PrepareV2(uid, payload, models.Params{})
 	fmt.Println(res)
 	if err != nil {
 		fmt.Println(err)
@@ -346,13 +346,109 @@ func (s *TycheController) OpenStore(c *gin.Context){
 		return
 	}
 	fmt.Println(payload)
-	res, err := s.Store(uid, payload,  models.Params{})
+	res, err := s.StoreV2(uid, payload,  models.Params{})
 	c.JSON(200, res)
 	return
 }
 
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
+func (s *TycheController) PrepareV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
+	var prepareData models.PrepareShiftRequest
+	err := json.Unmarshal(payload, &prepareData)
+	if err != nil {
+		return nil, err
+	}
+	selectedCoin, err := GetServiceConfig(prepareData, s.Hestia, s.DevMode)
+	if err != nil {
+		return nil, err
+	}
 
+	amountTo, payment, feePayment, err := GetRates(prepareData, selectedCoin, s.Obol, s.Plutus)
+	if err != nil {
+		return nil, err
+	}
+
+	prepareShift := models.PrepareShiftInfo{
+		ID:         utils.RandomString(),
+		FromCoin:   prepareData.FromCoin,
+		Payment:    payment,
+		FeePayment: feePayment,
+		ToCoin:     prepareData.ToCoin,
+		ToAddress:  prepareData.ToAddress,
+		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
+		Timestamp:  time.Now().Unix(),
+	}
+	prepareResponse := models.PrepareShiftResponseV2{
+		Payment:        payment,
+		Fee:            feePayment,
+		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
+		ShiftId: prepareShift.ID,
+	}
+	s.AddShiftToMap(prepareShift.ID, prepareShift)
+	return prepareResponse, nil
+}
+
+func (s *TycheController) StoreV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
+	var shiftPayment models.StoreShiftV2
+	err := json.Unmarshal(payload, &shiftPayment)
+	if err != nil {
+		return nil, err
+	}
+	storedShift, err := s.GetShiftFromMap(shiftPayment.ShiftId)
+	if err != nil {
+		return nil, err
+	}
+
+	var feePayment hestia.Payment
+	if storedShift.FromCoin != "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       storedShift.FeePayment.Address,
+			Amount:        storedShift.FeePayment.Amount,
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
+
+	if storedShift.ToCoin == "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       "N/A",                         // no fee por Polis conversion
+			Amount:        storedShift.FeePayment.Amount, // should be aways 0.0
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
+
+	shift := hestia.Shift{
+		ID:        storedShift.ID,
+		UID:       uid,
+		Status:    hestia.GetShiftStatusString(hestia.ShiftStatusPending),
+		Timestamp: time.Now().Unix(),
+		Payment: hestia.Payment{
+			Address:       storedShift.Payment.Address,
+			Amount:        storedShift.Payment.Amount,
+			Coin:          storedShift.FromCoin,
+			Txid:          "",
+			Confirmations: 0,
+		},
+		FeePayment:     feePayment,
+		ToCoin:         storedShift.ToCoin,
+		ToAmount:       storedShift.ToAmount,
+		ToAddress:      storedShift.ToAddress,
+		RefundAddr:     shiftPayment.RefundAddr,
+		PaymentProof:   "",
+		ProofTimestamp: 0,
+	}
+
+	s.RemoveShiftFromMap(shiftPayment.ShiftId)
+	shiftid, err := s.Hestia.UpdateShift(shift)
+	if err != nil {
+		return nil, err
+	}
+	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
+	return shiftid, nil
+}
 
 // Utility Functions
 func GetServiceConfig(data models.PrepareShiftRequest, hestiaService services.HestiaService, dev bool) (selectedCoin hestia.Coin, err error) {

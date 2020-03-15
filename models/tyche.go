@@ -34,6 +34,13 @@ type PrepareShiftResponse struct {
 	ReceivedAmount int64       `json:"received_amount"`
 }
 
+type PrepareShiftResponseV2 struct {
+	Payment        PaymentInfo `json:"payment"`
+	Fee            PaymentInfo `json:"fee"`
+	ReceivedAmount int64       `json:"received_amount"`
+	ShiftId			string `json:"shift_id"`
+}
+
 type PrepareShiftInfo struct {
 	ID         string      `json:"id"`
 	FromCoin   string      `json:"from_coin"`
@@ -56,4 +63,12 @@ type StoreShift struct {
 	FeeTX      string `json:"fee_tx"`
 	RefundAddr string `json:"refund_addr"`
 	HasFee     bool   `json:"has_fee"`
+}
+
+type StoreShiftV2 struct {
+	RawTX      	string `json:"raw_tx"`
+	FeeTX      	string `json:"fee_tx"`
+	RefundAddr 	string `json:"refund_addr"`
+	HasFee     	bool   `json:"has_fee"`
+	ShiftId		string `json:"shift_id"`
 }

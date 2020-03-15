@@ -1,13 +1,15 @@
-# Tyche API Reference
+# Tyche Open API Reference
 
-https://tyche.polispay.com
+https://tyche.polispay.com/shift/open/
 
 ## HTTP Return Codes WIP
 * HTTP `401`: Failed authorization on request.
 
-## Security Type WIP
-* PPAT
-* MVT
+## Authentication
+Use basic auth to use the API. The development team will provide you with the necessary credentials.
+
+## Encryption
+@TODO
 
 ## Endpoints WIP
 
@@ -41,7 +43,8 @@ Response
         "amount": 19082983,
         "has_fee": false
     },
-    "received_amount": 37465434
+    "received_amount": 37465434,
+    "shift_id": "unique_id"
 }
 ```
 
@@ -58,8 +61,9 @@ Request Body
 |------------|--------|----------|---------------------------------------------------------------------------------------------------|
 | raw_tx  | string | Y        | The serialized transaction for the payment.                                                                   |
 | fee_tx    | string | Y        | The serialized transaction for the fee payment.                                                                    |
-| refund_addr     | string    | Y        | ??                                                      |
+| refund_addr     | string    | Y        | Address corresponding to the from_coin, to use in case a refund is due                                    |
 | has_fee | boolean | Y        | The fee boolean received in the prepare request. |
+| shift_id | string | Y        | The shift id that was returned when calling the prepare/ endpoint. Shift will be available for 5 minutes after the prepare/ response is returned. |
 
 
 Response
