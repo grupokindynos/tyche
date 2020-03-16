@@ -284,9 +284,9 @@ func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareS
 	s.mapLock.Unlock()
 }
 
-func (s *TycheController) GetShiftFromMap(uid string) (models.PrepareShiftInfo, error) {
+func (s *TycheController) GetShiftFromMap(key string) (models.PrepareShiftInfo, error) {
 	s.mapLock.Lock()
-	shift, ok := s.PrepareShifts[uid]
+	shift, ok := s.PrepareShifts[key]
 	s.mapLock.Unlock()
 	if !ok {
 		return models.PrepareShiftInfo{}, errors.New("no shift found on cache")
@@ -358,7 +358,7 @@ func (s *TycheController) PrepareV2(uid string, payload []byte, _ models.Params)
 	if err != nil {
 		return nil, err
 	}
-	selectedCoin, err := GetServiceConfig(prepareData, s.Hestia, s.DevMode)
+	selectedCoin, err := GetServiceConfig(prepareData, s.Hestia, true)
 	if err != nil {
 		return nil, err
 	}
