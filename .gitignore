@@ -18,3 +18,6 @@
 .env
 tyche
 .DS_STORE
+
+# Telegram Bot
+telegram_log.log

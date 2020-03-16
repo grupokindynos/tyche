@@ -20,10 +20,25 @@ type PrepareShiftRequest struct {
 	ToAddress string `json:"to_address"`
 }
 
+type OpenPrepareShiftRequest struct {
+	FromCoin  string `json:"from_coin"`
+	Amount    int64  `json:"amount"`
+	ToCoin    string `json:"to_coin"`
+	ToAddress string `json:"to_address"`
+	UserId    string `json:"user_id"`
+}
+
 type PrepareShiftResponse struct {
 	Payment        PaymentInfo `json:"payment"`
 	Fee            PaymentInfo `json:"fee"`
 	ReceivedAmount int64       `json:"received_amount"`
+}
+
+type PrepareShiftResponseV2 struct {
+	Payment        PaymentInfo `json:"payment"`
+	Fee            PaymentInfo `json:"fee"`
+	ReceivedAmount int64       `json:"received_amount"`
+	ShiftId			string `json:"shift_id"`
 }
 
 type PrepareShiftInfo struct {
@@ -48,4 +63,12 @@ type StoreShift struct {
 	FeeTX      string `json:"fee_tx"`
 	RefundAddr string `json:"refund_addr"`
 	HasFee     bool   `json:"has_fee"`
+}
+
+type StoreShiftV2 struct {
+	RawTX      	string `json:"raw_tx"`
+	FeeTX      	string `json:"fee_tx"`
+	RefundAddr 	string `json:"refund_addr"`
+	HasFee     	bool   `json:"has_fee"`
+	ShiftId		string `json:"shift_id"`
 }

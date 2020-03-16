@@ -3,6 +3,10 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/grupokindynos/common/responses"
+	"io/ioutil"
 	"sync"
 	"time"
 
@@ -16,6 +20,7 @@ import (
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/tyche/models"
 
+	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/utils"
 	"github.com/grupokindynos/tyche/services"
@@ -50,113 +55,25 @@ func (s *TycheController) Balance(uid string, payload []byte, params models.Para
 	return balance, nil
 }
 
-func (s *TycheController) Prepare(uid string, payload []byte, params models.Params) (interface{}, error) {
+func (s *TycheController) Prepare(uid string, payload []byte, _ models.Params) (interface{}, error) {
 	var prepareData models.PrepareShiftRequest
 	err := json.Unmarshal(payload, &prepareData)
 	if err != nil {
 		return nil, err
 	}
-	status, err := s.Hestia.GetShiftStatus()
+	selectedCoin, err := GetServiceConfig(prepareData, s.Hestia, s.DevMode)
 	if err != nil {
 		return nil, err
-	}
-	if !s.DevMode {
-		if !status.Shift.Service {
-			return nil, err
-		}
 	}
 
-	coinsConfig, err := s.Hestia.GetCoinsConfig()
+	amountTo, payment, feePayment, err := GetRates(prepareData, selectedCoin, s.Obol, s.Plutus)
 	if err != nil {
 		return nil, err
 	}
-	var selectedCoin hestia.Coin
-	for _, coin := range coinsConfig {
-		if coin.Ticker == prepareData.FromCoin {
-			selectedCoin = coin
-		}
-	}
-	if selectedCoin.Ticker == "" {
-		return nil, err
-	}
-	if !selectedCoin.Shift.Available {
-		return nil, err
-	}
-	amountHandler := amount.AmountType(prepareData.Amount)
-	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
-	if err != nil {
-		return nil, err
-	}
-	coinRates, err := s.Obol.GetCoinRates(prepareData.FromCoin)
-	if err != nil {
-		return nil, err
-	}
-	polisRates, err := s.Obol.GetCoinRates("POLIS")
-	if err != nil {
-		return nil, err
-	}
-	var coinRatesUSD float64
-	for _, r := range coinRates {
-		if r.Code == "USD" {
-			coinRatesUSD = r.Rate
-		}
-	}
-	var polisRatesUSD float64
-	for _, r := range polisRates {
-		if r.Code == "USD" {
-			polisRatesUSD = r.Rate
-		}
-	}
-	fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
-	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * float64(selectedCoin.Shift.FeePercentage) / float64(100))
-	if err != nil {
-		return nil, err
-	}
-	rateAmountHandler, err := amount.NewAmount(rate.AveragePrice)
-	if err != nil {
-		return nil, err
-	}
-	ToAmount, err := amount.NewAmount(amountHandler.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
-	if err != nil {
-		return nil, err
-	}
-	paymentAddress, err := s.Plutus.GetNewPaymentAddress(prepareData.FromCoin)
-	if err != nil {
-		return nil, err
-	}
-	var feeAddress string
-	if prepareData.FromCoin != "POLIS" {
-		feeAddress, err = s.Plutus.GetNewPaymentAddress("POLIS")
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	payment := models.PaymentInfo{
-		Address: paymentAddress,
-		Amount:  prepareData.Amount,
-	}
-	var feePayment models.PaymentInfo
-	if prepareData.FromCoin != "POLIS" {
-		feePayment = models.PaymentInfo{
-			Address: feeAddress,
-			Amount:  int64(fee.ToUnit(amount.AmountSats)),
-			HasFee:  true,
-		}
-	}
-	// Eliminates payment fee when converting to Polis.
-	if prepareData.ToCoin == "POLIS" {
-		feePayment = models.PaymentInfo{
-			Address: "no fee for polis",
-			Amount:  0,
-			HasFee:  false,
-		}
-	}
-
 	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
 		Fee:            feePayment,
-		ReceivedAmount: int64(ToAmount.ToUnit(amount.AmountSats)),
+		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
 	}
 	prepareShift := models.PrepareShiftInfo{
 		ID:         utils.RandomString(),
@@ -165,14 +82,14 @@ func (s *TycheController) Prepare(uid string, payload []byte, params models.Para
 		FeePayment: feePayment,
 		ToCoin:     prepareData.ToCoin,
 		ToAddress:  prepareData.ToAddress,
-		ToAmount:   int64(ToAmount.ToUnit(amount.AmountSats)),
+		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
 	}
 	s.AddShiftToMap(uid, prepareShift)
 	return prepareResponse, nil
 }
 
-func (s *TycheController) Store(uid string, payload []byte, params models.Params) (interface{}, error) {
+func (s *TycheController) Store(uid string, payload []byte, _ models.Params) (interface{}, error) {
 	var shiftPayment models.StoreShift
 	err := json.Unmarshal(payload, &shiftPayment)
 	if err != nil {
@@ -367,9 +284,9 @@ func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareS
 	s.mapLock.Unlock()
 }
 
-func (s *TycheController) GetShiftFromMap(uid string) (models.PrepareShiftInfo, error) {
+func (s *TycheController) GetShiftFromMap(key string) (models.PrepareShiftInfo, error) {
 	s.mapLock.Lock()
-	shift, ok := s.PrepareShifts[uid]
+	shift, ok := s.PrepareShifts[key]
 	s.mapLock.Unlock()
 	if !ok {
 		return models.PrepareShiftInfo{}, errors.New("no shift found on cache")
@@ -381,4 +298,276 @@ func (s *TycheController) RemoveShiftFromMap(uid string) {
 	s.mapLock.Lock()
 	delete(s.PrepareShifts, uid)
 	s.mapLock.Unlock()
+}
+
+// OpenShift
+
+func (s *TycheController) OpenBalance(c *gin.Context) {
+	balance, err := s.Plutus.GetWalletBalance(c.Param("coin"))
+	if err != nil {
+		return
+	}
+	c.JSON(200, balance)
+	return
+}
+
+func (s *TycheController) OpenStatus(c *gin.Context) {
+	status, err := s.Hestia.GetShiftStatus()
+	if err != nil {
+		responses.GlobalResponseError(nil, err, c)
+	}
+	c.JSON(200, status.Shift.Service)
+	return
+}
+
+func (s *TycheController) OpenPrepare(c *gin.Context) {
+	uid := c.MustGet(gin.AuthUserKey).(string)
+	payload, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		return
+	}
+	res, err := s.PrepareV2(uid, payload, models.Params{})
+	fmt.Println(res)
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(500, err)
+		return
+	}
+	c.JSON(200, res)
+	return
+}
+
+
+func (s *TycheController) OpenStore(c *gin.Context){
+	uid := c.MustGet(gin.AuthUserKey).(string)
+	payload, err := ioutil.ReadAll(c.Request.Body)
+	fmt.Println(uid)
+	if err != nil {
+		return
+	}
+	fmt.Println(payload)
+	res, err := s.StoreV2(uid, payload,  models.Params{})
+	c.JSON(200, res)
+	return
+}
+
+// Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
+func (s *TycheController) PrepareV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
+	var prepareData models.PrepareShiftRequest
+	err := json.Unmarshal(payload, &prepareData)
+	if err != nil {
+		return nil, err
+	}
+	selectedCoin, err := GetServiceConfig(prepareData, s.Hestia, true)
+	if err != nil {
+		return nil, err
+	}
+
+	amountTo, payment, feePayment, err := GetRates(prepareData, selectedCoin, s.Obol, s.Plutus)
+	if err != nil {
+		return nil, err
+	}
+
+	prepareShift := models.PrepareShiftInfo{
+		ID:         utils.RandomString(),
+		FromCoin:   prepareData.FromCoin,
+		Payment:    payment,
+		FeePayment: feePayment,
+		ToCoin:     prepareData.ToCoin,
+		ToAddress:  prepareData.ToAddress,
+		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
+		Timestamp:  time.Now().Unix(),
+	}
+	prepareResponse := models.PrepareShiftResponseV2{
+		Payment:        payment,
+		Fee:            feePayment,
+		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
+		ShiftId: prepareShift.ID,
+	}
+	s.AddShiftToMap(prepareShift.ID, prepareShift)
+	return prepareResponse, nil
+}
+
+func (s *TycheController) StoreV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
+	var shiftPayment models.StoreShiftV2
+	err := json.Unmarshal(payload, &shiftPayment)
+	if err != nil {
+		return nil, err
+	}
+	storedShift, err := s.GetShiftFromMap(shiftPayment.ShiftId)
+	if err != nil {
+		return nil, err
+	}
+
+	var feePayment hestia.Payment
+	if storedShift.FromCoin != "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       storedShift.FeePayment.Address,
+			Amount:        storedShift.FeePayment.Amount,
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
+
+	if storedShift.ToCoin == "POLIS" {
+		feePayment = hestia.Payment{
+			Address:       "N/A",                         // no fee por Polis conversion
+			Amount:        storedShift.FeePayment.Amount, // should be aways 0.0
+			Coin:          "POLIS",
+			Txid:          "",
+			Confirmations: 0,
+		}
+	}
+
+	shift := hestia.Shift{
+		ID:        storedShift.ID,
+		UID:       uid,
+		Status:    hestia.GetShiftStatusString(hestia.ShiftStatusPending),
+		Timestamp: time.Now().Unix(),
+		Payment: hestia.Payment{
+			Address:       storedShift.Payment.Address,
+			Amount:        storedShift.Payment.Amount,
+			Coin:          storedShift.FromCoin,
+			Txid:          "",
+			Confirmations: 0,
+		},
+		FeePayment:     feePayment,
+		ToCoin:         storedShift.ToCoin,
+		ToAmount:       storedShift.ToAmount,
+		ToAddress:      storedShift.ToAddress,
+		RefundAddr:     shiftPayment.RefundAddr,
+		PaymentProof:   "",
+		ProofTimestamp: 0,
+	}
+
+	s.RemoveShiftFromMap(shiftPayment.ShiftId)
+	shiftid, err := s.Hestia.UpdateShift(shift)
+	if err != nil {
+		return nil, err
+	}
+	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
+	return shiftid, nil
+}
+
+// Utility Functions
+func GetServiceConfig(data models.PrepareShiftRequest, hestiaService services.HestiaService, dev bool) (selectedCoin hestia.Coin, err error) {
+	// This function determines the service status, and if the conversion parameters are valid according to the
+	// current service rules, in terms of coin availability and service availability. Returns the object containing
+	// the desired target coin's hestia information to proceed with Shift Calculations
+
+	// dev flag represents the development mode, should be true only when local Tyche testing is being performed.
+	status, err := hestiaService.GetShiftStatus()
+	if err != nil {
+		err = cerrors.ErrorServiceUnavailable
+		return
+	}
+	if !dev {
+		if !status.Shift.Service {
+			err = cerrors.ErrorServiceUnavailable
+			return
+		}
+	}
+
+	coinsConfig, err := hestiaService.GetCoinsConfig()
+	if err != nil {
+		err = cerrors.ErrorServiceUnavailable
+		return
+	}
+	for _, coin := range coinsConfig {
+		if coin.Ticker == data.FromCoin {
+			selectedCoin = coin
+		}
+	}
+	if selectedCoin.Ticker == "" {
+		err = cerrors.ErrorServiceUnavailable
+		return
+	}
+	if !selectedCoin.Shift.Available {
+		err = cerrors.ErrorServiceUnavailable
+		return
+	}
+	return
+}
+
+func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, plutusService services.PlutusService) (amountTo amount.AmountType,payment models.PaymentInfo, feePayment models.PaymentInfo, err error){
+	amountHandler := amount.AmountType(prepareData.Amount)
+	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
+	if err != nil {
+		err = cerrors.ErrorObtainingRates
+		return
+	}
+	coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
+	if err != nil {
+		err = cerrors.ErrorObtainingRates
+		return
+	}
+	polisRates, err := obolService.GetCoinRates("POLIS")
+	if err != nil {
+		err = cerrors.ErrorObtainingRates
+		return
+	}
+	var coinRatesUSD float64
+	for _, r := range coinRates {
+		if r.Code == "USD" {
+			coinRatesUSD = r.Rate
+			break
+		}
+	}
+	var polisRatesUSD float64
+	for _, r := range polisRates {
+		if r.Code == "USD" {
+			polisRatesUSD = r.Rate
+			break
+		}
+	}
+	fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
+	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * float64(selectedCoin.Shift.FeePercentage) / float64(100))
+	if err != nil {
+		err = cerrors.ErrorObtainingRates
+		return
+	}
+	rateAmountHandler, err := amount.NewAmount(rate.AveragePrice)
+	if err != nil {
+		err = cerrors.ErrorObtainingRates
+		return
+	}
+	amountTo, err = amount.NewAmount(amountHandler.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
+	if err != nil {
+		err = cerrors.ErrorFillingPaymentInformation
+		return
+	}
+	paymentAddress, err := plutusService.GetNewPaymentAddress(prepareData.FromCoin)
+	if err != nil {
+		err = cerrors.ErrorFillingPaymentInformation
+		return
+	}
+	var feeAddress string
+	if prepareData.FromCoin != "POLIS" {
+		feeAddress, err = plutusService.GetNewPaymentAddress("POLIS")
+		if err != nil {
+			return
+		}
+	}
+
+	payment = models.PaymentInfo{
+		Address: paymentAddress,
+		Amount:  prepareData.Amount,
+	}
+	if prepareData.FromCoin != "POLIS" {
+		feePayment = models.PaymentInfo{
+			Address: feeAddress,
+			Amount:  int64(fee.ToUnit(amount.AmountSats)),
+			HasFee:  true,
+		}
+	}
+	// Eliminates payment fee when converting to Polis.
+	if prepareData.ToCoin == "POLIS" {
+		feePayment = models.PaymentInfo{
+			Address: "no fee for polis",
+			Amount:  0,
+			HasFee:  false,
+		}
+	}
+	return
 }
