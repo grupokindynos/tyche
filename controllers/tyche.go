@@ -320,21 +320,13 @@ func (s *TycheController) OpenStatus(c *gin.Context) {
 	return
 }
 
-func (s *TycheController) OpenPrepare(c *gin.Context) {
-	uid := c.MustGet(gin.AuthUserKey).(string)
-	payload, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		return
-	}
+func (s *TycheController) OpenPrepare(uid string, payload []byte, _ models.Params) (interface{}, error) {
 	res, err := s.PrepareV2(uid, payload, models.Params{})
 	fmt.Println(res)
 	if err != nil {
-		fmt.Println(err)
-		c.JSON(500, err)
-		return
+		return nil, err
 	}
-	c.JSON(200, res)
-	return
+	return res, nil
 }
 
 
