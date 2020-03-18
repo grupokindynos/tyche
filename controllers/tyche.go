@@ -33,7 +33,7 @@ type TycheController struct {
 	DevMode       bool
 }
 
-func (s *TycheController) Status(uid string, payload []byte, params models.Params) (interface{}, error) {
+func (s *TycheController) Status(string, []byte, models.Params) (interface{}, error) {
 	if s.DevMode {
 		return true, nil
 	}
@@ -44,7 +44,7 @@ func (s *TycheController) Status(uid string, payload []byte, params models.Param
 	return status.Shift.Service, nil
 }
 
-func (s *TycheController) Balance(uid string, payload []byte, params models.Params) (interface{}, error) {
+func (s *TycheController) Balance(_ string, _ []byte, params models.Params) (interface{}, error) {
 	balance, err := s.Plutus.GetWalletBalance(params.Coin)
 	if err != nil {
 		return nil, err
@@ -140,12 +140,12 @@ func (s *TycheController) Store(uid string, payload []byte, _ models.Params) (in
 	}
 
 	s.RemoveShiftFromMap(uid)
-	shiftid, err := s.Hestia.UpdateShift(shift)
+	shiftId, err := s.Hestia.UpdateShift(shift)
 	if err != nil {
 		return nil, err
 	}
 	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
-	return shiftid, nil
+	return shiftId, nil
 }
 
 func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftData models.PrepareShiftInfo, rawTx string, feeTx string) {
@@ -299,7 +299,7 @@ func (s *TycheController) RemoveShiftFromMap(uid string) {
 
 // OpenShift
 
-func (s *TycheController) OpenBalance(uid string, payload []byte, params models.Params) (interface{}, error){
+func (s *TycheController) OpenBalance(_ string, _ []byte, params models.Params) (interface{}, error){
 	balance, err := s.Plutus.GetWalletBalance(params.Coin)
 	if err != nil {
 		return nil, err
@@ -307,7 +307,7 @@ func (s *TycheController) OpenBalance(uid string, payload []byte, params models.
 	return balance, nil
 }
 
-func (s *TycheController) OpenStatus(uid string, payload []byte, _ models.Params) (interface{}, error) {
+func (s *TycheController) OpenStatus(_ string, _ []byte, _ models.Params) (interface{}, error) {
 	status, err := s.Hestia.GetShiftStatus()
 	if err != nil {
 		return nil, err
@@ -334,7 +334,7 @@ func (s *TycheController) OpenStore(uid string, payload []byte, _ models.Params)
 }
 
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
-func (s *TycheController) PrepareV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
+func (s *TycheController) PrepareV2(_ string, payload []byte, _ models.Params) (interface{}, error) {
 	var prepareData models.PrepareShiftRequest
 	err := json.Unmarshal(payload, &prepareData)
 	if err != nil {
@@ -504,7 +504,7 @@ func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, 
 		}
 	}
 	fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
-	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * float64(selectedCoin.Shift.FeePercentage) / float64(100))
+	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * selectedCoin.Shift.FeePercentage / float64(100))
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
 		return
