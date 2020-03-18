@@ -145,9 +145,9 @@ func ApplyRoutes(r *gin.Engine) {
 		username: password,
 	}))
 	{
-		openApi.GET("balance/:coin", tycheCtrl.OpenBalance)
-		openApi.GET("status", tycheCtrl.OpenStatus)
-		openApi.POST("prepare", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenPrepare) })
+		openApi.GET("balance/:coin", func(context *gin.Context) {ValidateOpenRequest(context, tycheCtrl.OpenBalance)})
+		openApi.GET("status", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenStatus)})
+		openApi.POST("prepare", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenPrepare)})
 		openApi.POST("new", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenStore) })
 	}
 }

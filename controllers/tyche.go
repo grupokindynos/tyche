@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/grupokindynos/common/responses"
 	"sync"
 	"time"
 
@@ -301,22 +299,20 @@ func (s *TycheController) RemoveShiftFromMap(uid string) {
 
 // OpenShift
 
-func (s *TycheController) OpenBalance(c *gin.Context) {
-	balance, err := s.Plutus.GetWalletBalance(c.Param("coin"))
+func (s *TycheController) OpenBalance(uid string, payload []byte, params models.Params) (interface{}, error){
+	balance, err := s.Plutus.GetWalletBalance(params.Coin)
 	if err != nil {
-		return
+		return nil, err
 	}
-	c.JSON(200, balance)
-	return
+	return balance, nil
 }
 
-func (s *TycheController) OpenStatus(c *gin.Context) {
+func (s *TycheController) OpenStatus(uid string, payload []byte, _ models.Params) (interface{}, error) {
 	status, err := s.Hestia.GetShiftStatus()
 	if err != nil {
-		responses.GlobalResponseError(nil, err, c)
+		return nil, err
 	}
-	c.JSON(200, status.Shift.Service)
-	return
+	return status.Shift.Service, nil
 }
 
 func (s *TycheController) OpenPrepare(uid string, payload []byte, _ models.Params) (interface{}, error) {
