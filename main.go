@@ -147,7 +147,7 @@ func ApplyRoutes(r *gin.Engine) {
 	{
 		openApi.GET("balance/:coin", tycheCtrl.OpenBalance)
 		openApi.GET("status", tycheCtrl.OpenStatus)
-		openApi.POST("prepare", tycheCtrl.OpenPrepare)
+		openApi.POST("prepare", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenPrepare) })
 		openApi.POST("new", tycheCtrl.OpenStore)
 	}
 }
@@ -182,6 +182,24 @@ func ValidateRequest(c *gin.Context, method func(uid string, payload []byte, par
 	}
 	token, err := jwt.EncryptJWE(uid, response)
 	responses.GlobalResponseError(token, err, c)
+	return
+}
+
+func ValidateOpenRequest(c *gin.Context, method func(uid string, payload []byte, params models.Params) (interface{}, error)) {
+	uid := c.MustGet(gin.AuthUserKey).(string)
+	if uid == "" {
+		responses.GlobalOpenNoAuth(c)
+	}
+	params := models.Params{
+		Coin: c.Param("coin"),
+	}
+	payload, err := c.GetRawData()
+	response, err := method(uid, payload, params)
+	if err != nil {
+		responses.GlobalOpenError(nil, err, c)
+		return
+	}
+	responses.GlobalResponse(response, c)
 	return
 }
 
@@ -246,24 +264,4 @@ func checkAndRemoveShifts(ctrl *controllers.TycheController) {
 		}
 		log.Printf("Removed %v shifts", count)
 	}
-}
-
-
-func ValidateOpenRequest(c *gin.Context, method func(uid string, payload []byte, params models.Params) (interface{}, error)) {
-	fbToken := c.GetHeader("token")
-	if fbToken == "" {
-		responses.GlobalResponseNoAuth(c)
-		return
-	}
-	params := models.Params{
-		Coin: c.Param("coin"),
-	}
-	tokenBytes, _ := c.GetRawData()
-	response, err := method(uid, payload, params)
-	if err != nil {
-		responses.GlobalResponseError(nil, err, c)
-		return
-	}
-	responses.GlobalResponseError(response, err, c)
-	return
 }
