@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/grupokindynos/common/responses"
-	"io/ioutil"
 	"sync"
 	"time"
 
@@ -330,17 +329,12 @@ func (s *TycheController) OpenPrepare(uid string, payload []byte, _ models.Param
 }
 
 
-func (s *TycheController) OpenStore(c *gin.Context){
-	uid := c.MustGet(gin.AuthUserKey).(string)
-	payload, err := ioutil.ReadAll(c.Request.Body)
-	fmt.Println(uid)
-	if err != nil {
-		return
-	}
-	fmt.Println(payload)
+func (s *TycheController) OpenStore(uid string, payload []byte, _ models.Params) (interface{}, error){
 	res, err := s.StoreV2(uid, payload,  models.Params{})
-	c.JSON(200, res)
-	return
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
