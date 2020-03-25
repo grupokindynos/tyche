@@ -109,7 +109,7 @@ func GetApp() *gin.Engine {
 }
 
 func ApplyRoutes(r *gin.Engine) {
-	tycheCtrl := &controllers.TycheController{
+	tycheCtrl := &controllers.TycheControllerV2{
 		PrepareShifts: prepareShiftsMap,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
@@ -251,7 +251,7 @@ func runCronMinutes(schedule int, function func(), wg *sync.WaitGroup) {
 	}()
 }
 
-func checkAndRemoveShifts(ctrl *controllers.TycheController) {
+func checkAndRemoveShifts(ctrl *controllers.TycheControllerV2) {
 	for {
 		time.Sleep(time.Second * 60)
 		log.Print("Removing obsolete shifts request")

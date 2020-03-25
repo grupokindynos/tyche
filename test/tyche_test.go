@@ -27,7 +27,7 @@ func TestStatus(t *testing.T) {
 	hestiaAvailable := hestia.Config{Shift: hestia.Available{Service: true}}
 
 	mockHestiaService := mocks.NewMockHestiaService(mockCtrl)
-	testTyche := &controllers.TycheController{Hestia: mockHestiaService}
+	testTyche := &controllers.TycheControllerV2{Hestia: mockHestiaService}
 
 	gomock.InOrder(
 		mockHestiaService.EXPECT().GetShiftStatus().Return(emptyHestiaConfig, testError),
@@ -66,7 +66,7 @@ func TestBalance(t *testing.T) {
 	plutusBalance := plutus.Balance{Confirmed: 120.35, Unconfirmed: 30.34}
 
 	mockPlutusService := mocks.NewMockPlutusService(mockCtrl)
-	testTyche := &controllers.TycheController{Plutus: mockPlutusService}
+	testTyche := &controllers.TycheControllerV2{Plutus: mockPlutusService}
 
 	gomock.InOrder(
 		mockPlutusService.EXPECT().GetWalletBalance(gomock.Eq("BTC")).Return(emptyPlutusBalance, testError),
@@ -157,7 +157,7 @@ func TestPrepare(t *testing.T) {
 
 	shiftsMap := make(map[string]models.PrepareShiftInfo)
 
-	testTyche := &controllers.TycheController{PrepareShifts: shiftsMap, Hestia: mockHestiaService, Plutus: mockPlutusService, Obol: mockObolService}
+	testTyche := &controllers.TycheControllerV2{PrepareShifts: shiftsMap, Hestia: mockHestiaService, Plutus: mockPlutusService, Obol: mockObolService}
 
 	gomock.InOrder(
 		mockHestiaService.EXPECT().GetShiftStatus().Return(hestiaAvailable, nil),
@@ -268,7 +268,7 @@ func TestStore(t *testing.T) {
 	shiftsMap := make(map[string]models.PrepareShiftInfo)
 	shiftsMap[uid] = preparedShift
 
-	testTyche := &controllers.TycheController{PrepareShifts: shiftsMap, Hestia: mockHestiaService, Plutus: mockPlutusService}
+	testTyche := &controllers.TycheControllerV2{PrepareShifts: shiftsMap, Hestia: mockHestiaService, Plutus: mockPlutusService}
 
 	gomock.InOrder(
 		mockHestiaService.EXPECT().UpdateShift(gomock.Eq(shift)).Return(shiftId, nil),
