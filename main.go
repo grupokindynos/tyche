@@ -109,7 +109,7 @@ func GetApp() *gin.Engine {
 }
 
 func ApplyRoutes(r *gin.Engine) {
-	tycheCtrl := &controllers.TycheControllerV2{
+	tycheCtrl := &controllers.TycheController{
 		PrepareShifts: prepareShiftsMap,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
@@ -118,7 +118,19 @@ func ApplyRoutes(r *gin.Engine) {
 		DevMode:	   devMode,
 	}
 
+	tycheV2Ctrl := &controllers.TycheControllerV2{
+		PrepareShifts: prepareShiftsMap,
+		TxsAvailable:  !noTxsAvailable,
+		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
+		Plutus:        &services.PlutusRequests{},
+		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+		DevMode:	   devMode,
+	}
+
+	// Backward compatibility
 	go checkAndRemoveShifts(tycheCtrl)
+	go checkAndRemoveV2Shifts(tycheV2Ctrl)
+
 	api := r.Group("/")
 	{
 		api.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Balance) })
@@ -130,10 +142,19 @@ func ApplyRoutes(r *gin.Engine) {
 		c.String(http.StatusNotFound, "Not Found")
 	})
 
+	apiV11 := r.Group("/v1.1/")
+	{
+		apiV11.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareV11) })
+		apiV11.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreV11) })
+	}
+	r.NoRoute(func(c *gin.Context) {
+		c.String(http.StatusNotFound, "Not Found")
+	})
+
 	apiV2 := r.Group("/v2/")
 	{
-		apiV2.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareV2) })
-		apiV2.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreV2) })
+		apiV2.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareV11) })
+		apiV2.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreV11) })
 	}
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")
@@ -251,7 +272,22 @@ func runCronMinutes(schedule int, function func(), wg *sync.WaitGroup) {
 	}()
 }
 
-func checkAndRemoveShifts(ctrl *controllers.TycheControllerV2) {
+func checkAndRemoveShifts(ctrl *controllers.TycheController) {
+	for {
+		time.Sleep(time.Second * 60)
+		log.Print("Removing obsolete shifts request")
+		count := 0
+		for k, v := range ctrl.PrepareShifts {
+			if time.Now().Unix() > v.Timestamp+prepareShiftTimeframe {
+				count += 1
+				ctrl.RemoveShiftFromMap(k)
+			}
+		}
+		log.Printf("Removed %v shifts", count)
+	}
+}
+
+func checkAndRemoveV2Shifts(ctrl *controllers.TycheControllerV2) {
 	for {
 		time.Sleep(time.Second * 60)
 		log.Print("Removing obsolete shifts request")

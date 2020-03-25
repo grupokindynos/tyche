@@ -316,7 +316,7 @@ func (s *TycheController) OpenStatus(_ string, _ []byte, _ models.Params) (inter
 }
 
 func (s *TycheController) OpenPrepare(uid string, payload []byte, _ models.Params) (interface{}, error) {
-	res, err := s.PrepareV2(uid, payload, models.Params{})
+	res, err := s.PrepareV11(uid, payload, models.Params{})
 	fmt.Println(res)
 	if err != nil {
 		return nil, err
@@ -326,7 +326,7 @@ func (s *TycheController) OpenPrepare(uid string, payload []byte, _ models.Param
 
 
 func (s *TycheController) OpenStore(uid string, payload []byte, _ models.Params) (interface{}, error){
-	res, err := s.StoreV2(uid, payload,  models.Params{})
+	res, err := s.StoreV11(uid, payload,  models.Params{})
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (s *TycheController) OpenStore(uid string, payload []byte, _ models.Params)
 }
 
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
-func (s *TycheController) PrepareV2(_ string, payload []byte, _ models.Params) (interface{}, error) {
+func (s *TycheController) PrepareV11(_ string, payload []byte, _ models.Params) (interface{}, error) {
 	var prepareData models.PrepareShiftRequest
 	err := json.Unmarshal(payload, &prepareData)
 	if err != nil {
@@ -370,7 +370,7 @@ func (s *TycheController) PrepareV2(_ string, payload []byte, _ models.Params) (
 	return prepareResponse, nil
 }
 
-func (s *TycheController) StoreV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
+func (s *TycheController) StoreV11(uid string, payload []byte, _ models.Params) (interface{}, error) {
 	var shiftPayment models.StoreShiftV2
 	err := json.Unmarshal(payload, &shiftPayment)
 	if err != nil {
