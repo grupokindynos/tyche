@@ -43,40 +43,13 @@ func (p *TycheProcessorV2) Start() {
 	}
 	var wg sync.WaitGroup
 	wg.Add(4)
+	go p.handleCreatedShifts(&wg)
 	go p.handlePendingShifts(&wg)
-	go p.handleConfirmingShifts(&wg)
+
 	go p.handleConfirmedShifts(&wg)
 	go p.handleRefundShifts(&wg)
 	wg.Wait()
 	fmt.Println("Shifts Processor Finished")
-}
-
-func (p *TycheProcessorV2) handlePendingShifts(wg *sync.WaitGroup) {
-	defer wg.Done()
-	shifts, err := p.getPendingShifts()
-	if err != nil {
-		fmt.Println("Pending shifts processor finished with errors: " + err.Error())
-		teleBot.SendError("Pending shifts processor finished with errors: " + err.Error())
-		return
-	}
-	for _, s := range shifts {
-		if s.Timestamp+7200 < time.Now().Unix() {
-			s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = p.Hestia.UpdateShift(s)
-			if err != nil {
-				fmt.Println("Unable to update shift confirmations: " + err.Error())
-				continue
-			}
-			continue
-		}
-		s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirming)
-		_, err = p.Hestia.UpdateShift(s)
-		if err != nil {
-			fmt.Println("Unable to update shift " + err.Error())
-			teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + s.ID)
-			continue
-		}
-	}
 }
 
 func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
@@ -85,7 +58,6 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 	if err != nil {
 		fmt.Println("Confirming shifts processor finished with errors: " + err.Error())
 		teleBot.SendError("Confirming shifts processor finished with errors: " + err.Error())
-
 		return
 	}
 	// Check confirmations and return
@@ -155,6 +127,34 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 		_, err = p.Hestia.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift confirmations: " + err.Error())
+			continue
+		}
+	}
+}
+
+func (p *TycheProcessorV2) handlePendingShifts(wg *sync.WaitGroup) {
+	defer wg.Done()
+	shifts, err := p.getPendingShifts()
+	if err != nil {
+		fmt.Println("Pending shifts processor finished with errors: " + err.Error())
+		teleBot.SendError("Pending shifts processor finished with errors: " + err.Error())
+		return
+	}
+	for _, s := range shifts {
+		if s.Timestamp+7200 < time.Now().Unix() {
+			s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
+			_, err = p.Hestia.UpdateShift(s)
+			if err != nil {
+				fmt.Println("Unable to update shift confirmations: " + err.Error())
+				continue
+			}
+			continue
+		}
+		s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirming)
+		_, err = p.Hestia.UpdateShift(s)
+		if err != nil {
+			fmt.Println("Unable to update shift " + err.Error())
+			teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
 	}

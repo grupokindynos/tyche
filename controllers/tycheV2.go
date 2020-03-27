@@ -11,11 +11,12 @@ import (
 
 	"github.com/grupokindynos/common/plutus"
 
-	coinfactory "github.com/grupokindynos/common/coin-factory"
+	coinFactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/tyche/models"
 
+	"github.com/grupokindynos/adrestia-go/exchanges"
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/utils"
 	"github.com/grupokindynos/tyche/services"
@@ -29,6 +30,7 @@ type TycheControllerV2 struct {
 	Plutus        services.PlutusService
 	Obol          obol.ObolService
 	DevMode       bool
+	exFactory     *exchanges.ExchangeFactory
 }
 
 func (s *TycheControllerV2) StatusV2(string, []byte, models.Params) (interface{}, error) {
@@ -335,7 +337,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 		}
 
 		// Broadcast fee rawTx
-		polisCoinConfig, err := coinfactory.GetCoin("POLIS")
+		polisCoinConfig, err := coinFactory.GetCoin("POLIS")
 		if err != nil {
 			// If get coin fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
@@ -385,7 +387,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 		}
 	}
 	// Broadcast rawTx
-	coinConfig, err := coinfactory.GetCoin(shiftData.Payment.Coin)
+	coinConfig, err := coinFactory.GetCoin(shiftData.Payment.Coin)
 	if err != nil {
 		// If get coin fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
