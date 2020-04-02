@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"github.com/grupokindynos/tyche/services"
 	"sync"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/grupokindynos/adrestia-go/exchanges"
 	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/utils"
-	"github.com/grupokindynos/tyche/services"
+	//"github.com/grupokindynos/tyche/services"
 )
 
 type TycheControllerV2 struct {
@@ -29,8 +30,9 @@ type TycheControllerV2 struct {
 	Hestia        services.HestiaService
 	Plutus        services.PlutusService
 	Obol          obol.ObolService
+	Adrestia      services.AdrestiaService
 	DevMode       bool
-	exFactory     *exchanges.ExchangeFactory
+	ExFactory     *exchanges.ExchangeFactory
 }
 
 func (s *TycheControllerV2) StatusV2(string, []byte, models.Params) (interface{}, error) {
@@ -95,13 +97,19 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		return nil, err
 	}
 
+	// TODO GetExchangeAddress
+	paymentAddress, err := s.Adrestia.GetAddress(prepareData.FromCoin)
+	if err != nil {
+		return nil, err
+	}
+
 	prepareShift := models.PrepareShiftInfo{
 		ID:         utils.RandomString(),
 		FromCoin:   prepareData.FromCoin,
 		Payment:    payment,
 		FeePayment: feePayment,
 		ToCoin:     prepareData.ToCoin,
-		ToAddress:  prepareData.ToAddress,
+		ToAddress:  paymentAddress,
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
 	}

@@ -45,6 +45,7 @@ var (
 
 var (
 	hestiaEnv       string
+	adrestiaEnv     string
 	noTxsAvailable  bool
 	skipValidations bool
 	devMode			bool
@@ -68,13 +69,16 @@ func main() {
 	// If flag was set, change the hestia request url to be local
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
+		adrestiaEnv = "ADRESTIA_LOCAL_URL"
 
 		// check if testing flags were set
 		noTxsAvailable = *noTxs
 		skipValidations = *skipVal
 
 	} else {
+		adrestiaEnv = "ADRESTIA_PRODUCTION_URL"
 		hestiaEnv = "HESTIA_PRODUCTION_URL"
+		adrestiaEnv = "ADRESTIA_LOCAL_URL"
 		if *noTxs || *skipVal {
 			fmt.Println("cannot set testing flags without -local flag")
 			os.Exit(1)
@@ -118,12 +122,14 @@ func ApplyRoutes(r *gin.Engine) {
 		DevMode:	   devMode,
 	}
 
+	// Service Instances
 	tycheV2Ctrl := &controllers.TycheControllerV2{
 		PrepareShifts: prepareShiftsMap,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
 		Plutus:        &services.PlutusRequests{},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+		Adrestia:      &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
 		DevMode:	   devMode,
 	}
 

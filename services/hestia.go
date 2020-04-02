@@ -17,8 +17,8 @@ type HestiaRequests struct {
 	HestiaURL string
 }
 
-func (h *HestiaRequests) GetShiftStatus() (hestia.Config, error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(h.HestiaURL)+"/config", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (a *HestiaRequests) GetShiftStatus() (hestia.Config, error) {
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(a.HestiaURL)+"/config", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return hestia.Config{}, err
 	}
@@ -55,8 +55,8 @@ func (h *HestiaRequests) GetShiftStatus() (hestia.Config, error) {
 	return response, nil
 }
 
-func (h *HestiaRequests) GetCoinsConfig() ([]hestia.Coin, error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(h.HestiaURL)+"/coins", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (a *HestiaRequests) GetCoinsConfig() ([]hestia.Coin, error) {
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(a.HestiaURL)+"/coins", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,8 @@ func (h *HestiaRequests) GetCoinsConfig() ([]hestia.Coin, error) {
 	return response, nil
 }
 
-func (h *HestiaRequests) UpdateShift(shiftData hestia.Shift) (string, error) {
-	req, err := mvt.CreateMVTToken("POST", os.Getenv(h.HestiaURL)+"/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (a *HestiaRequests) UpdateShift(shiftData hestia.Shift) (string, error) {
+	req, err := mvt.CreateMVTToken("POST", os.Getenv(a.HestiaURL)+"/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return "", err
 	}

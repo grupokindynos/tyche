@@ -24,6 +24,7 @@ import (
 type TycheProcessorV2 struct {
 	Hestia          services.HestiaService
 	Plutus          services.PlutusService
+	Adrestia        services.AdrestiaService
 	HestiaURL       string
 	SkipValidations bool
 }

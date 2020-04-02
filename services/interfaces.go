@@ -17,3 +17,7 @@ type PlutusService interface {
 	ValidateRawTx(body plutus.ValidateRawTxReq) (valid bool, err error)
 	SubmitPayment(body plutus.SendAddressBodyReq) (txid string, err error)
 }
+
+type AdrestiaService interface {
+	GetAddress(coin string) (address string, err error)
+}
