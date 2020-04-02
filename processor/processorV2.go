@@ -246,23 +246,23 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 }
 
 func (p *TycheProcessorV2) getPendingShifts() ([]hestia.Shift, error) {
-	return p.getShifts(hestia.S)
+	return p.getShifts(hestia.ShiftStatusV2Created)
 }
 
 func (p *TycheProcessorV2) getConfirmingShifts() ([]hestia.Shift, error) {
-	return p.getShifts(hestia.ShiftStatusConfirming)
+	return p.getShifts(hestia.ShiftStatusV2ProcessingOrders)
 }
 
 func (p *TycheProcessorV2) getConfirmedShifts() ([]hestia.Shift, error) {
-	return p.getShifts(hestia.ShiftStatusConfirmed)
+	return p.getShifts(hestia.ShiftStatusV2Confirmed)
 }
 
 func (p *TycheProcessorV2) getRefundShifts() ([]hestia.Shift, error) {
-	return p.getShifts(hestia.ShiftStatusRefund)
+	return p.getShifts(hestia.ShiftStatusV2Refunded)
 }
 
-func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusv2) ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift/all?filter="+hestia.GetShiftStatusV2String(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.Shift, error) {
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift/all?filter="+hestia.GetShiftStatusv2String(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}

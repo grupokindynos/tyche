@@ -3,9 +3,11 @@ package services
 import (
 	"encoding/json"
 	"errors"
+	"github.com/grupokindynos/adrestia-go/models"
 	"github.com/grupokindynos/common/tokens/mrt"
 	"github.com/grupokindynos/common/tokens/mvt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -15,8 +17,10 @@ type AdrestiaRequests struct {
 	AdrestiaUrl string
 }
 
-func (a *AdrestiaRequests) GetAddress(coin string) (address string, err error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(a.AdrestiaUrl)+"/address/" + coin, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (a *AdrestiaRequests) GetAddress(coin string) (address models.AddressResponse, err error) {
+	url := os.Getenv(a.AdrestiaUrl) + "address/" + coin;
+	log.Println(url)
+	req, err := mvt.CreateMVTToken("GET", url, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return
 	}
@@ -42,7 +46,7 @@ func (a *AdrestiaRequests) GetAddress(coin string) (address string, err error) {
 		err = errors.New("no header signature")
 		return
 	}
-	valid, payload := mrt.VerifyMRTToken(headerSignature, tokenString, os.Getenv("HESTIA_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
+	valid, payload := mrt.VerifyMRTToken(headerSignature, tokenString, os.Getenv("ADRESTIA_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
 	if !valid {
 		return
 	}

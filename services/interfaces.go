@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/grupokindynos/adrestia-go/models"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/plutus"
 )
@@ -19,5 +20,5 @@ type PlutusService interface {
 }
 
 type AdrestiaService interface {
-	GetAddress(coin string) (address string, err error)
+	GetAddress(coin string) (address models.AddressResponse, err error)
 }

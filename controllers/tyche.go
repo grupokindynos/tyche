@@ -519,6 +519,7 @@ func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, 
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
+
 	paymentAddress, err := plutusService.GetNewPaymentAddress(prepareData.FromCoin)
 	if err != nil {
 		err = cerrors.ErrorFillingPaymentInformation

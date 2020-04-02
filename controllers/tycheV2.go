@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
 	"sync"
 	"time"
@@ -92,13 +93,7 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		return nil, err
 	}
 
-	amountTo, payment, feePayment, err := GetRates(prepareData, selectedCoin, s.Obol, s.Plutus)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO GetExchangeAddress
-	paymentAddress, err := s.Adrestia.GetAddress(prepareData.FromCoin)
+	amountTo, payment, feePayment, err := GetRatesV2(prepareData, selectedCoin, s.Obol, s.Adrestia)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +104,7 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		Payment:    payment,
 		FeePayment: feePayment,
 		ToCoin:     prepareData.ToCoin,
-		ToAddress:  paymentAddress,
+		ToAddress:  prepareData.ToAddress,
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
 	}
@@ -185,47 +180,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	return shiftid, nil
 }
 
-// Utility Functions
-/* func GetServiceConfig(data models.PrepareShiftRequest, hestiaService services.HestiaService, dev bool) (selectedCoin hestia.Coin, err error) {
-	// This function determines the service status, and if the conversion parameters are valid according to the
-	// current service rules, in terms of coin availability and service availability. Returns the object containing
-	// the desired target coin's hestia information to proceed with Shift Calculations
-
-	// dev flag represents the development mode, should be true only when local Tyche testing is being performed.
-	status, err := hestiaService.GetShiftStatus()
-	if err != nil {
-		err = cerrors.ErrorServiceUnavailable
-		return
-	}
-	if !dev {
-		if !status.Shift.Service {
-			err = cerrors.ErrorServiceUnavailable
-			return
-		}
-	}
-
-	coinsConfig, err := hestiaService.GetCoinsConfig()
-	if err != nil {
-		err = cerrors.ErrorServiceUnavailable
-		return
-	}
-	for _, coin := range coinsConfig {
-		if coin.Ticker == data.FromCoin {
-			selectedCoin = coin
-		}
-	}
-	if selectedCoin.Ticker == "" {
-		err = cerrors.ErrorServiceUnavailable
-		return
-	}
-	if !selectedCoin.Shift.Available {
-		err = cerrors.ErrorServiceUnavailable
-		return
-	}
-	return
-}*/
-
-/*func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, plutusService services.PlutusService) (amountTo amount.AmountType,payment models.PaymentInfo, feePayment models.PaymentInfo, err error){
+func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType,payment models.PaymentInfo, feePayment models.PaymentInfo, err error){
 	amountHandler := amount.AmountType(prepareData.Amount)
 	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
@@ -272,21 +227,25 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
-	paymentAddress, err := plutusService.GetNewPaymentAddress(prepareData.FromCoin)
+
+	// TODO Get adrestia address
+	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
 	if err != nil {
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
 	var feeAddress string
 	if prepareData.FromCoin != "POLIS" {
-		feeAddress, err = plutusService.GetNewPaymentAddress("POLIS")
-		if err != nil {
+		feeAddressObject, err2 := adrestiaService.GetAddress("POLIS")
+		if err2 != nil {
+			err = err2
 			return
 		}
+		feeAddress = feeAddressObject.Address
 	}
 
 	payment = models.PaymentInfo{
-		Address: paymentAddress,
+		Address: paymentAddress.Address,
 		Amount:  prepareData.Amount,
 	}
 	if prepareData.FromCoin != "POLIS" {
@@ -305,7 +264,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		}
 	}
 	return
-}*/
+}
 // utils
 func (s *TycheControllerV2) RemoveShiftFromMap(uid string) {
 	s.mapLock.Lock()
