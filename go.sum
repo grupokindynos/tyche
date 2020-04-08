@@ -191,6 +191,8 @@ github.com/grupokindynos/adrestia-go v0.0.0-20200402192225-aae35e393b19 h1:nnrWK
 github.com/grupokindynos/adrestia-go v0.0.0-20200402192225-aae35e393b19/go.mod h1:Ln4Ychb3TtGC2QsvqGCd3ZO/NUjI9uIPLQvmNa/6Y4A=
 github.com/grupokindynos/adrestia-go v0.0.0-20200408191632-92a3cd323c9f h1:ALuWJYnwVxk7SPNKr1QIw6LSMQCJL4fYLB0sNGQhRzQ=
 github.com/grupokindynos/adrestia-go v0.0.0-20200408191632-92a3cd323c9f/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
+github.com/grupokindynos/adrestia-go v0.0.0-20200408192446-282b875380aa h1:pESmKSExuKl5gBCjmqZThoRYEeReZiLeevPJxxM4abc=
+github.com/grupokindynos/adrestia-go v0.0.0-20200408192446-282b875380aa/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
 github.com/grupokindynos/common v0.0.0-20200315191440-69b692d26c17 h1:FHEmcNdJDiNOADFtlDqV2cRmZd2wRdRXTuUg15jxHmU=
 github.com/grupokindynos/common v0.0.0-20200315191440-69b692d26c17/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/common v0.0.0-20200315200154-4623c39edd33 h1:gmVrqKPEr7WsZPW2VZXp4RJ3RvLo12m5NNGdFnUqwo0=
