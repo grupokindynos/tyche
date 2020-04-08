@@ -21,4 +21,5 @@ type PlutusService interface {
 
 type AdrestiaService interface {
 	GetAddress(coin string) (address models.AddressResponse, err error)
+	GetPath(fromCoin string, toCoin string) (path models.PathResponse, err error)
 }
