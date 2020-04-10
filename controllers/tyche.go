@@ -360,7 +360,7 @@ func (s *TycheController) PrepareV11(_ string, payload []byte, _ models.Params) 
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
 	}
-	prepareResponse := models.PrepareShiftResponseV2{
+	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
 		Fee:            feePayment,
 		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
@@ -371,7 +371,7 @@ func (s *TycheController) PrepareV11(_ string, payload []byte, _ models.Params) 
 }
 
 func (s *TycheController) StoreV11(uid string, payload []byte, _ models.Params) (interface{}, error) {
-	var shiftPayment models.StoreShiftV2
+	var shiftPayment models.StoreShiftV11
 	err := json.Unmarshal(payload, &shiftPayment)
 	if err != nil {
 		return nil, err

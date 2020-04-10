@@ -193,6 +193,8 @@ github.com/grupokindynos/adrestia-go v0.0.0-20200408191632-92a3cd323c9f h1:ALuWJ
 github.com/grupokindynos/adrestia-go v0.0.0-20200408191632-92a3cd323c9f/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
 github.com/grupokindynos/adrestia-go v0.0.0-20200408192446-282b875380aa h1:pESmKSExuKl5gBCjmqZThoRYEeReZiLeevPJxxM4abc=
 github.com/grupokindynos/adrestia-go v0.0.0-20200408192446-282b875380aa/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
+github.com/grupokindynos/adrestia-go v0.0.0-20200409150954-c4f3c24a1c41 h1:Q1CD95ztAhfDLYhrTjdYq6vTLjZ8wNpB+V2d4LIKsUk=
+github.com/grupokindynos/adrestia-go v0.0.0-20200409150954-c4f3c24a1c41/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
 github.com/grupokindynos/common v0.0.0-20200315191440-69b692d26c17 h1:FHEmcNdJDiNOADFtlDqV2cRmZd2wRdRXTuUg15jxHmU=
 github.com/grupokindynos/common v0.0.0-20200315191440-69b692d26c17/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/common v0.0.0-20200315200154-4623c39edd33 h1:gmVrqKPEr7WsZPW2VZXp4RJ3RvLo12m5NNGdFnUqwo0=
@@ -566,6 +568,8 @@ golang.org/x/sys v0.0.0-20200331124033-c3d80250170d h1:nc5K6ox/4lTFbMVSL9WRR81ix
 golang.org/x/sys v0.0.0-20200331124033-c3d80250170d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200408040146-ea54a3c99b9b h1:h03Ur1RlPrGTjua4koYdpGl8W0eYo8p1uI9w7RPlkdk=
 golang.org/x/sys v0.0.0-20200408040146-ea54a3c99b9b/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200409092240-59c9f1ba88fa h1:mQTN3ECqfsViCNBgq+A40vdwhkGykrrQlYe3mPj6BoU=
+golang.org/x/sys v0.0.0-20200409092240-59c9f1ba88fa/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=

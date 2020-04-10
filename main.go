@@ -41,6 +41,7 @@ type CurrentTime struct {
 var (
 	currTime         CurrentTime
 	prepareShiftsMap = make(map[string]models.PrepareShiftInfo)
+	prepareShiftsMapV2 = make(map[string]models.PrepareShiftInfoV2)
 )
 
 var (
@@ -124,7 +125,7 @@ func ApplyRoutes(r *gin.Engine) {
 
 	// Service Instances
 	tycheV2Ctrl := &controllers.TycheControllerV2{
-		PrepareShifts: prepareShiftsMap,
+		PrepareShifts: prepareShiftsMapV2,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
 		Plutus:        &services.PlutusRequests{},

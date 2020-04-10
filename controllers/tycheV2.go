@@ -25,7 +25,7 @@ import (
 )
 
 type TycheControllerV2 struct {
-	PrepareShifts map[string]models.PrepareShiftInfo
+	PrepareShifts map[string]models.PrepareShiftInfoV2
 	mapLock       sync.RWMutex
 	TxsAvailable  bool
 	Hestia        services.HestiaService
@@ -63,18 +63,18 @@ func (s *TycheControllerV2) broadCastTx(coinConfig *coins.Coin, rawTx string) (s
 	return blockbookWrapper.SendTxWithMessage(rawTx)
 }
 
-func (s *TycheControllerV2) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfo) {
+func (s *TycheControllerV2) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfoV2) {
 	s.mapLock.Lock()
 	s.PrepareShifts[uid] = shiftPrepare
 	s.mapLock.Unlock()
 }
 
-func (s *TycheControllerV2) GetShiftFromMap(key string) (models.PrepareShiftInfo, error) {
+func (s *TycheControllerV2) GetShiftFromMap(key string) (models.PrepareShiftInfoV2, error) {
 	s.mapLock.Lock()
 	shift, ok := s.PrepareShifts[key]
 	s.mapLock.Unlock()
 	if !ok {
-		return models.PrepareShiftInfo{}, errors.New("no shift found on cache")
+		return models.PrepareShiftInfoV2{}, errors.New("no shift found on cache")
 	}
 	return shift, nil
 }
@@ -93,16 +93,15 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		return nil, err
 	}
 
-	amountTo, payment, feePayment, err := GetRatesV2(prepareData, selectedCoin, s.Obol, s.Adrestia)
+	amountTo, payment, err := GetRatesV2(prepareData, selectedCoin, s.Obol, s.Adrestia)
 	if err != nil {
 		return nil, err
 	}
 
-	prepareShift := models.PrepareShiftInfo{
+	prepareShift := models.PrepareShiftInfoV2{
 		ID:         utils.RandomString(),
 		FromCoin:   prepareData.FromCoin,
 		Payment:    payment,
-		FeePayment: feePayment,
 		ToCoin:     prepareData.ToCoin,
 		ToAddress:  prepareData.ToAddress,
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
@@ -110,7 +109,6 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 	}
 	prepareResponse := models.PrepareShiftResponseV2{
 		Payment:        payment,
-		Fee:            feePayment,
 		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
 		ShiftId: prepareShift.ID,
 	}
@@ -130,33 +128,14 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	}
 
 	var feePayment hestia.Payment
-	if storedShift.FromCoin != "POLIS" {
-		feePayment = hestia.Payment{
-			Address:       storedShift.FeePayment.Address,
-			Amount:        storedShift.FeePayment.Amount,
-			Coin:          "POLIS",
-			Txid:          "",
-			Confirmations: 0,
-		}
-	}
 
-	if storedShift.ToCoin == "POLIS" {
-		feePayment = hestia.Payment{
-			Address:       "N/A",                         // no fee por Polis conversion
-			Amount:        storedShift.FeePayment.Amount, // should be aways 0.0
-			Coin:          "POLIS",
-			Txid:          "",
-			Confirmations: 0,
-		}
-	}
-
-	shift := hestia.Shift{
+	shift := hestia.ShiftV2{
 		ID:        storedShift.ID,
 		UID:       uid,
 		Status:    hestia.GetShiftStatusString(hestia.ShiftStatusPending),
 		Timestamp: time.Now().Unix(),
 		Payment: hestia.Payment{
-			Address:       storedShift.Payment.Address,
+			Address:       storedShift.Payment.Address.ExchangeAddress.Address,
 			Amount:        storedShift.Payment.Amount,
 			Coin:          storedShift.FromCoin,
 			Txid:          "",
@@ -172,7 +151,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	}
 
 	s.RemoveShiftFromMap(shiftPayment.ShiftId)
-	shiftid, err := s.Hestia.UpdateShift(shift)
+	shiftid, err := s.Hestia.UpdateShiftV2(shift)
 	if err != nil {
 		return nil, err
 	}
@@ -180,43 +159,41 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	return shiftid, nil
 }
 
-func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType,payment models.PaymentInfo, feePayment models.PaymentInfo, err error){
+func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error){
 	amountHandler := amount.AmountType(prepareData.Amount)
-	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
+
+	// Get rates from coin to target coin
+	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1 - selectedCoin.Shift.FeePercentage))
+
+	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, inputAmount.String())
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
 		return
 	}
-	coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
+	/* coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
 		return
 	}
-	polisRates, err := obolService.GetCoinRates("POLIS")
-	if err != nil {
-		err = cerrors.ErrorObtainingRates
-		return
-	}
-	var coinRatesUSD float64
+
+	 */
+
+	/*var coinRatesUSD float64
 	for _, r := range coinRates {
 		if r.Code == "USD" {
 			coinRatesUSD = r.Rate
 			break
 		}
-	}
-	var polisRatesUSD float64
-	for _, r := range polisRates {
-		if r.Code == "USD" {
-			polisRatesUSD = r.Rate
-			break
-		}
-	}
-	fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
-	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * selectedCoin.Shift.FeePercentage / float64(100))
+	}*/
+
+
+	// fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
+	fee, err := amount.NewAmount(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
 		return
 	}
+	// Handler for exchange rate
 	rateAmountHandler, err := amount.NewAmount(rate.AveragePrice)
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
@@ -228,40 +205,23 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		return
 	}
 
-	// TODO Get adrestia address
 	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
 	if err != nil {
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
-	var feeAddress string
-	if prepareData.FromCoin != "POLIS" {
-		feeAddressObject, err2 := adrestiaService.GetAddress("POLIS")
-		if err2 != nil {
-			err = err2
-			return
-		}
-		feeAddress = feeAddressObject.Address
-	}
 
-	payment = models.PaymentInfo{
-		Address: paymentAddress.Address,
-		Amount:  prepareData.Amount,
+	feeFlag := true
+	if selectedCoin.Shift.FeePercentage == 0 {
+		feeFlag = false
 	}
-	if prepareData.FromCoin != "POLIS" {
-		feePayment = models.PaymentInfo{
-			Address: feeAddress,
-			Amount:  int64(fee.ToUnit(amount.AmountSats)),
-			HasFee:  true,
-		}
-	}
-	// Eliminates payment fee when converting to Polis.
-	if prepareData.ToCoin == "POLIS" {
-		feePayment = models.PaymentInfo{
-			Address: "no fee for polis",
-			Amount:  0,
-			HasFee:  false,
-		}
+	paymentData = models.PaymentInfoV2{
+		Address: paymentAddress,
+		Amount:  int64(inputAmount.ToUnit(amount.AmountSats)), // Amount + Fee
+		Fee: int64(fee.ToUnit(amount.AmountSats)),
+		Total: int64(inputAmount.ToUnit(amount.AmountSats)) + int64(fee.ToUnit(amount.AmountSats)),
+		HasFee:  feeFlag,
+		Rate: int64(rateAmountHandler.ToUnit(amount.AmountSats)),
 	}
 	return
 }
@@ -272,7 +232,7 @@ func (s *TycheControllerV2) RemoveShiftFromMap(uid string) {
 	s.mapLock.Unlock()
 }
 
-func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShiftData models.PrepareShiftInfo, rawTx string, feeTx string) {
+func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShiftData models.PrepareShiftInfoV2, rawTx string, feeTx string) {
 	// Only decode raw transaction if tx does not come from or to POLIS
 	// Conditional statement is logic for the negation for "if its from or to polis"
 	if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
@@ -287,7 +247,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 
 		if err != nil {
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = s.Hestia.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShiftV2(shiftData)
 			if err != nil {
 				return
 			}
@@ -296,7 +256,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 
 		if !valid {
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = s.Hestia.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShiftV2(shiftData)
 			if err != nil {
 				return
 			}
@@ -308,7 +268,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 		if err != nil {
 			// If get coin fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = s.Hestia.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShiftV2(shiftData)
 			if err != nil {
 				return
 			}
@@ -318,7 +278,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 		if err != nil {
 			// If broadcast fail, we should mark error, no spent anything.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = s.Hestia.UpdateShift(shiftData)
+			_, err = s.Hestia.UpdateShiftV2(shiftData)
 			if err != nil {
 				return
 			}
@@ -341,7 +301,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 			// If decode fail and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
-		_, err = s.Hestia.UpdateShift(shiftData)
+		_, err = s.Hestia.UpdateShiftV2(shiftData)
 		if err != nil {
 			return
 		}
@@ -362,7 +322,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 			// If get coin fail and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
-		_, err = s.Hestia.UpdateShift(shiftData)
+		_, err = s.Hestia.UpdateShiftV2(shiftData)
 		if err != nil {
 			return
 		}
@@ -376,7 +336,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 			// If broadcast fail and payment is not POLIS, we should mark Refund to send back the fees.
 			shiftData.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefund)
 		}
-		_, err = s.Hestia.UpdateShift(shiftData)
+		_, err = s.Hestia.UpdateShiftV2(shiftData)
 		if err != nil {
 			return
 		}
@@ -385,7 +345,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.Shift, storedShift
 	shiftData.Message = message
 	// Update shift model include txid.
 	shiftData.Payment.Txid = paymentTxid
-	_, err = s.Hestia.UpdateShift(shiftData)
+	_, err = s.Hestia.UpdateShiftV2(shiftData)
 	if err != nil {
 		return
 	}

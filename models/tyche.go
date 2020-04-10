@@ -1,5 +1,7 @@
 package models
 
+import "github.com/grupokindynos/adrestia-go/models"
+
 type Params struct {
 	Coin string
 }
@@ -32,11 +34,11 @@ type PrepareShiftResponse struct {
 	Payment        PaymentInfo `json:"payment"`
 	Fee            PaymentInfo `json:"fee"`
 	ReceivedAmount int64       `json:"received_amount"`
+	ShiftId			string `json:"shift_id"`
 }
 
 type PrepareShiftResponseV2 struct {
-	Payment        PaymentInfo `json:"payment"`
-	Fee            PaymentInfo `json:"fee"`
+	Payment        PaymentInfoV2 `json:"payment"`
 	ReceivedAmount int64       `json:"received_amount"`
 	ShiftId			string `json:"shift_id"`
 }
@@ -52,10 +54,29 @@ type PrepareShiftInfo struct {
 	Timestamp  int64       `json:"timestamp"`
 }
 
+type PrepareShiftInfoV2 struct {
+	ID         string      `json:"id"`
+	FromCoin   string      `json:"from_coin"`
+	Payment    PaymentInfoV2 `json:"payment"`
+	ToCoin     string      `json:"to_coin"`
+	ToAddress  string      `json:"to_address"`
+	ToAmount   int64       `json:"to_amount"`
+	Timestamp  int64       `json:"timestamp"`
+}
+
 type PaymentInfo struct {
 	Address string `json:"address"`
 	Amount  int64  `json:"amount"`
 	HasFee  bool   `json:"has_fee"`
+}
+
+type PaymentInfoV2 struct {
+	Address models.AddressResponse `json:"address"`
+	Fee int64 `json:"fee"`
+	Amount  int64  `json:"amount"`
+	Total  int64  `json:"total"`
+	HasFee  bool   `json:"has_fee"`
+	Rate int64 `json:"rate"`
 }
 
 type StoreShift struct {
@@ -63,6 +84,14 @@ type StoreShift struct {
 	FeeTX      string `json:"fee_tx"`
 	RefundAddr string `json:"refund_addr"`
 	HasFee     bool   `json:"has_fee"`
+}
+
+type StoreShiftV11 struct {
+	RawTX      	string `json:"raw_tx"`
+	FeeTX      	string `json:"fee_tx"`
+	RefundAddr 	string `json:"refund_addr"`
+	HasFee     	bool   `json:"has_fee"`
+	ShiftId		string `json:"shift_id"`
 }
 
 type StoreShiftV2 struct {

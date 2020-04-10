@@ -131,3 +131,43 @@ func (a *HestiaRequests) UpdateShift(shiftData hestia.Shift) (string, error) {
 
 	return response, nil
 }
+
+func (a *HestiaRequests) UpdateShiftV2(shiftData hestia.ShiftV2) (string, error) {
+	// TODO new shift v2 endpoint
+	req, err := mvt.CreateMVTToken("POST", os.Getenv(a.HestiaURL)+"/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	if err != nil {
+		return "", err
+	}
+	client := http.Client{
+		Transport:     nil,
+		CheckRedirect: nil,
+		Jar:           nil,
+		Timeout:       time.Second * 30,
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	tokenResponse, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	var tokenString string
+	err = json.Unmarshal(tokenResponse, &tokenString)
+	if err != nil {
+		return "", err
+	}
+	headerSignature := res.Header.Get("service")
+	valid, payload := mrt.VerifyMRTToken(headerSignature, tokenString, os.Getenv("HESTIA_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
+	if !valid {
+		return "", err
+	}
+	var response string
+	err = json.Unmarshal(payload, &response)
+	if err != nil {
+		return "", err
+	}
+
+	return response, nil
+}

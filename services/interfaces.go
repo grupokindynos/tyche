@@ -10,6 +10,7 @@ type HestiaService interface {
 	GetShiftStatus() (hestia.Config, error)
 	GetCoinsConfig() ([]hestia.Coin, error)
 	UpdateShift(shiftData hestia.Shift) (string, error)
+	UpdateShiftV2(shiftData hestia.ShiftV2) (string, error)
 }
 
 type PlutusService interface {
