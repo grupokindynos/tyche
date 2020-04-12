@@ -9,8 +9,8 @@ require (
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.5 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/grupokindynos/adrestia-go v0.0.0-20200409150954-c4f3c24a1c41
-	github.com/grupokindynos/common v0.0.0-20200407165333-46d8e6ce26e7
+	github.com/grupokindynos/adrestia-go v0.0.0-20200412193152-66d4c94abc83
+	github.com/grupokindynos/common v0.0.0-20200412192932-4ae379e2a6f1
 	github.com/heroku/x v0.0.16
 	github.com/joho/godotenv v1.3.0
 	github.com/martinboehm/btcd v0.0.0-20200313230603-83af86142d93 // indirect
