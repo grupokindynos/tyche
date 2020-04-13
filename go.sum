@@ -186,14 +186,12 @@ github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgf
 github.com/grpc-ecosystem/grpc-gateway v1.9.4/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grpc-ecosystem/grpc-gateway v1.9.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grpc-ecosystem/grpc-gateway v1.9.6/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
-github.com/grupokindynos/adrestia-go v0.0.0-20200409150954-c4f3c24a1c41 h1:Q1CD95ztAhfDLYhrTjdYq6vTLjZ8wNpB+V2d4LIKsUk=
-github.com/grupokindynos/adrestia-go v0.0.0-20200409150954-c4f3c24a1c41/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
 github.com/grupokindynos/adrestia-go v0.0.0-20200412193152-66d4c94abc83 h1:S3/CgiGZz1KBzI2sthtu8ItMFf1utvHDMmO3k6yGAN8=
 github.com/grupokindynos/adrestia-go v0.0.0-20200412193152-66d4c94abc83/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
 github.com/grupokindynos/common v0.0.0-20200407165333-46d8e6ce26e7 h1:PRILDIScd6aHfL0aJopFvBMYQMDskdg07RVbkYQI+j4=
 github.com/grupokindynos/common v0.0.0-20200407165333-46d8e6ce26e7/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
-github.com/grupokindynos/common v0.0.0-20200412192932-4ae379e2a6f1 h1:v7N9y+8EBxtaq8zO/KHcnlFOS7rYWJQhVrRvGoJACRc=
-github.com/grupokindynos/common v0.0.0-20200412192932-4ae379e2a6f1/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
+github.com/grupokindynos/common v0.0.0-20200413034820-4c09831c165a h1:8Xy3yGGUeTNQYS3SSTLFQTYo8nU8R2ChGZPy3NrWeXY=
+github.com/grupokindynos/common v0.0.0-20200413034820-4c09831c165a/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/go-binance v0.0.0-20200218200020-be83de467e5d h1:8KbHjP+K2y2CNQQcJXrxeSdRDNCp94qJn6RK08KwMhk=
 github.com/grupokindynos/go-binance v0.0.0-20200218200020-be83de467e5d/go.mod h1:RgYTB+ZsGwA2qfu4o9ObHcsGijn3F04BdV5Nv0mmMqI=
 github.com/hashicorp/consul/api v1.3.0/go.mod h1:MmDNSzIMUjNpY/mQ398R4bk2FnqQLoPndWW5VkKPlCE=

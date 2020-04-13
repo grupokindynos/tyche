@@ -63,7 +63,7 @@ type PrepareShiftInfoV2 struct {
 	ToAmount   int64       `json:"to_amount"`
 	ToAmountUSD   int64       `json:"to_amount_usd"`
 	Timestamp  int64       `json:"timestamp"`
-	Path models.ExchangeTrade `json:"paths"`
+	Path models.PathResponse `json:"paths"`
 }
 
 type PaymentInfo struct {

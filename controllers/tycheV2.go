@@ -109,6 +109,7 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		ToAddress:  prepareData.ToAddress,
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
+		Path: payment.Conversions,
 	}
 	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
@@ -135,10 +136,45 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 
 	var feePayment hestia.Payment
 
+	var inTrade []hestia.Trade
+	for _, trade := range storedShift.Path.InwardOrder {
+		newTrade := hestia.Trade{
+			OrderId:        "",
+			Amount:         0,
+			ReceivedAmount: 0,
+			FromCoin:       trade.FromCoin,
+			ToCoin:         trade.ToCoin,
+			Symbol:         trade.Trade.Book,
+			Side:           trade.Trade.Type,
+			CreatedTime:    0,
+			FulfilledTime:  0,
+		}
+		inTrade = append(inTrade, newTrade)
+	}
+	if len(inTrade) > 0 {
+		inTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
+	}
+
+	var outTrade []hestia.Trade
+	for _, trade := range storedShift.Path.OutwardOrder {
+		newTrade := hestia.Trade{
+			OrderId:        "",
+			Amount:         0,
+			ReceivedAmount: 0,
+			FromCoin:       trade.FromCoin,
+			ToCoin:         trade.ToCoin,
+			Symbol:         trade.Trade.Book,
+			Side:           trade.Trade.Type,
+			CreatedTime:    0,
+			FulfilledTime:  0,
+		}
+		outTrade = append(outTrade, newTrade)
+	}
+
 	shift := hestia.ShiftV2{
 		ID:        storedShift.ID,
 		UID:       uid,
-		Status:    hestia.GetShiftStatusString(hestia.ShiftStatusPending),
+		Status:    hestia.ShiftStatusV2Created,
 		Timestamp: time.Now().Unix(),
 		Payment: hestia.Payment{
 			Address:       storedShift.Payment.Address.ExchangeAddress.Address,
@@ -154,25 +190,24 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		RefundAddr:     shiftPayment.RefundAddr,
 		PaymentProof:   "",
 		ProofTimestamp: 0,
+		InboundTrade: inTrade,
+		OutboundTrade: outTrade,
 	}
 
 	s.RemoveShiftFromMap(shiftPayment.ShiftId)
-	shiftid, err := s.Hestia.UpdateShiftV2(shift)
+	shiftId, err := s.Hestia.UpdateShiftV2(shift)
 	if err != nil {
 		return nil, err
 	}
 	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
-	return shiftid, nil
+	return shiftId, nil
 }
 
 func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error){
-	log.Println("GETRATESV2 STARTED")
 	amountHandler := amount.AmountType(prepareData.Amount)
-	log.Println(amountHandler)
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
 	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage/100))
 	fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
-	log.Println("inputAmount", inputAmount)
 
 	// Retrieve conversion rates
 	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, inputAmount.String())
@@ -186,8 +221,6 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		err = cerrors.ErrorObtainingRates
 		return
 	}
-
-	log.Println("Rate: ", rate)
 
 	// Retrieve Dollar conversion
 	coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
@@ -206,9 +239,6 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	// Values for estimated target conversion
 	fromCoinToUSD := inputAmount.ToNormalUnit() * coinRatesUSD
 	feeToUsd := fee.ToNormalUnit() * coinRatesUSD
-
-	log.Println("USD Values: ", fromCoinToUSD, " Fee: ", feeToUsd, " Total: ", fromCoinToUSD + feeToUsd)
-
 
 	amountTo, err = amount.NewAmount(inputAmount.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
 	if err != nil {
