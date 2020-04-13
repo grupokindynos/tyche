@@ -79,6 +79,13 @@ type PaymentInfoV2 struct {
 	Total  int64  `json:"total"`
 	HasFee  bool   `json:"has_fee"`
 	Rate int64 `json:"rate"`
+	FiatInfo ExpectedFiatAmount `json:"fiat_info"`
+	Conversions models.PathResponse `json:"conversions"`
+}
+
+type ExpectedFiatAmount struct {
+	Amount float64 `json:"amount"`
+	Fee float64 `json:"fee"`
 }
 
 type StoreShift struct {

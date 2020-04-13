@@ -58,13 +58,13 @@ func (a *AdrestiaRequests) GetAddress(coin string) (address models.AddressRespon
 }
 
 func (a *AdrestiaRequests) GetPath(fromCoin string, toCoin string) (path models.PathResponse, err error) {
-	url := os.Getenv(a.AdrestiaUrl) + "path/"
+	url := os.Getenv(a.AdrestiaUrl) + "path"
 	pathParams := models.PathParams{
-		FromCoin:      toCoin,
-		ToCoin:        fromCoin,
+		FromCoin:      fromCoin,
+		ToCoin:        toCoin,
 	}
 	log.Println(url)
-	req, err := mvt.CreateMVTToken("GET", url, "tyche", os.Getenv("MASTER_PASSWORD"), pathParams, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("POST", url, "tyche", os.Getenv("MASTER_PASSWORD"), pathParams, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return
 	}
@@ -77,6 +77,7 @@ func (a *AdrestiaRequests) GetPath(fromCoin string, toCoin string) (path models.
 	}
 	defer res.Body.Close()
 	tokenResponse, err := ioutil.ReadAll(res.Body)
+	log.Println(string(tokenResponse))
 	if err != nil {
 		return
 	}

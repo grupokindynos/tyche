@@ -3,8 +3,10 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
+	"log"
 	"sync"
 	"time"
 
@@ -94,6 +96,7 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 	}
 
 	amountTo, payment, err := GetRatesV2(prepareData, selectedCoin, s.Obol, s.Adrestia)
+	log.Println("amountTo after GetRatesV2", amountTo)
 	if err != nil {
 		return nil, err
 	}
@@ -107,11 +110,14 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
 	}
+	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
 		Payment:        payment,
 		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
 		ShiftId: prepareShift.ID,
 	}
+	fmt.Println(prepareResponse)
+
 	s.AddShiftToMap(prepareShift.ID, prepareShift)
 	return prepareResponse, nil
 }
@@ -160,35 +166,16 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 }
 
 func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error){
+	log.Println("GETRATESV2 STARTED")
 	amountHandler := amount.AmountType(prepareData.Amount)
+	log.Println(amountHandler)
+	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
+	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage/100))
+	fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
+	log.Println("inputAmount", inputAmount)
 
-	// Get rates from coin to target coin
-	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1 - selectedCoin.Shift.FeePercentage))
-
+	// Retrieve conversion rates
 	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, inputAmount.String())
-	if err != nil {
-		err = cerrors.ErrorObtainingRates
-		return
-	}
-	/* coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
-	if err != nil {
-		err = cerrors.ErrorObtainingRates
-		return
-	}
-
-	 */
-
-	/*var coinRatesUSD float64
-	for _, r := range coinRates {
-		if r.Code == "USD" {
-			coinRatesUSD = r.Rate
-			break
-		}
-	}*/
-
-
-	// fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
-	fee, err := amount.NewAmount(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
 		return
@@ -199,13 +186,43 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		err = cerrors.ErrorObtainingRates
 		return
 	}
-	amountTo, err = amount.NewAmount(amountHandler.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
+
+	log.Println("Rate: ", rate)
+
+	// Retrieve Dollar conversion
+	coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
+	if err != nil {
+		err = cerrors.ErrorObtainingRates
+		return
+	}
+
+	var coinRatesUSD float64
+	for _, r := range coinRates {
+		if r.Code == "USD" {
+			coinRatesUSD = r.Rate
+			break
+		}
+	}
+	// Values for estimated target conversion
+	fromCoinToUSD := inputAmount.ToNormalUnit() * coinRatesUSD
+	feeToUsd := fee.ToNormalUnit() * coinRatesUSD
+
+	log.Println("USD Values: ", fromCoinToUSD, " Fee: ", feeToUsd, " Total: ", fromCoinToUSD + feeToUsd)
+
+
+	amountTo, err = amount.NewAmount(inputAmount.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
 	if err != nil {
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
 
 	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
+	if err != nil {
+		err = cerrors.ErrorFillingPaymentInformation
+		return
+	}
+
+	pathInfo, err := adrestiaService.GetPath(prepareData.FromCoin, prepareData.ToCoin)
 	if err != nil {
 		err = cerrors.ErrorFillingPaymentInformation
 		return
@@ -222,6 +239,11 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		Total: int64(inputAmount.ToUnit(amount.AmountSats)) + int64(fee.ToUnit(amount.AmountSats)),
 		HasFee:  feeFlag,
 		Rate: int64(rateAmountHandler.ToUnit(amount.AmountSats)),
+		FiatInfo: models.ExpectedFiatAmount{
+			Amount: fromCoinToUSD,
+			Fee:    feeToUsd,
+		},
+		Conversions: pathInfo,
 	}
 	return
 }
