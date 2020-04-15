@@ -134,7 +134,7 @@ func (a *HestiaRequests) UpdateShift(shiftData hestia.Shift) (string, error) {
 
 func (a *HestiaRequests) UpdateShiftV2(shiftData hestia.ShiftV2) (string, error) {
 	// TODO new shift v2 endpoint
-	req, err := mvt.CreateMVTToken("POST", os.Getenv(a.HestiaURL)+"/shift", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("POST", os.Getenv(a.HestiaURL)+"/shift2", "tyche", os.Getenv("MASTER_PASSWORD"), shiftData, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return "", err
 	}

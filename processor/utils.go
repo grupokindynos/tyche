@@ -17,6 +17,28 @@ func checkTxId(payment *hestia.Payment) error {
 	return nil
 }
 
+func checkTxIdWithFee(payment *hestia.PaymentWithFee) error {
+	if payment.Txid == "" {
+		txId, err := getMissingTxId(payment.Coin, payment.Address, payment.Amount)
+		if err != nil {
+			return err
+		}
+		payment.Txid = txId
+	}
+	return nil
+}
+
+func V2(payment *hestia.Payment) error {
+	if payment.Txid == "" {
+		txId, err := getMissingTxId(payment.Coin, payment.Address, payment.Amount)
+		if err != nil {
+			return err
+		}
+		payment.Txid = txId
+	}
+	return nil
+}
+
 func getMissingTxId(coin string, address string, amount int64) (string, error) {
 	coinConfig, _ := coinFactory.GetCoin(coin)
 	blockBook := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)

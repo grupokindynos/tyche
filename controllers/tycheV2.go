@@ -120,6 +120,7 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 	fmt.Println(prepareResponse)
 
 	s.AddShiftToMap(prepareShift.ID, prepareShift)
+	log.Println(s.PrepareShifts)
 	return prepareResponse, nil
 }
 
@@ -129,13 +130,13 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	if err != nil {
 		return nil, err
 	}
+	log.Println("Shift ID TO CREATE: ", shiftPayment.ShiftId)
 	storedShift, err := s.GetShiftFromMap(shiftPayment.ShiftId)
 	if err != nil {
 		return nil, err
 	}
 
-	var feePayment hestia.Payment
-
+	// Create Trade Objects for two-way orders
 	var inTrade []hestia.Trade
 	for _, trade := range storedShift.Path.InwardOrder {
 		newTrade := hestia.Trade{
@@ -176,14 +177,15 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		UID:       uid,
 		Status:    hestia.ShiftStatusV2Created,
 		Timestamp: time.Now().Unix(),
-		Payment: hestia.Payment{
+		Payment: hestia.PaymentWithFee{
 			Address:       storedShift.Payment.Address.ExchangeAddress.Address,
-			Amount:        storedShift.Payment.Amount,
+			Amount:        storedShift.Payment.Total,
+			Fee:           storedShift.Payment.Fee,
+			Usable:        storedShift.Payment.Amount,
 			Coin:          storedShift.FromCoin,
 			Txid:          "",
 			Confirmations: 0,
 		},
-		FeePayment:     feePayment,
 		ToCoin:         storedShift.ToCoin,
 		ToAmount:       storedShift.ToAmount,
 		ToAddress:      storedShift.ToAddress,
@@ -194,12 +196,13 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		OutboundTrade: outTrade,
 	}
 
-	s.RemoveShiftFromMap(shiftPayment.ShiftId)
+
 	shiftId, err := s.Hestia.UpdateShiftV2(shift)
 	if err != nil {
 		return nil, err
 	}
-	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX, shiftPayment.FeeTX)
+	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX)
+	s.RemoveShiftFromMap(shiftPayment.ShiftId)
 	return shiftId, nil
 }
 
@@ -284,60 +287,7 @@ func (s *TycheControllerV2) RemoveShiftFromMap(uid string) {
 	s.mapLock.Unlock()
 }
 
-func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShiftData models.PrepareShiftInfoV2, rawTx string, feeTx string) {
-	// Only decode raw transaction if tx does not come from or to POLIS
-	// Conditional statement is logic for the negation for "if its from or to polis"
-	if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
-		// Validate Payment FeeRawTx
-		body := plutus.ValidateRawTxReq{
-			Coin:    shiftData.FeePayment.Coin,
-			RawTx:   feeTx,
-			Amount:  shiftData.FeePayment.Amount,
-			Address: shiftData.FeePayment.Address,
-		}
-		valid, err := s.Plutus.ValidateRawTx(body)
-
-		if err != nil {
-			shiftData.Status = hestia.ShiftStatusV2Error
-			_, err = s.Hestia.UpdateShiftV2(shiftData)
-			if err != nil {
-				return
-			}
-			return
-		}
-
-		if !valid {
-			shiftData.Status = hestia.ShiftStatusV2Error
-			_, err = s.Hestia.UpdateShiftV2(shiftData)
-			if err != nil {
-				return
-			}
-			return
-		}
-
-		// Broadcast fee rawTx
-		polisCoinConfig, err := coinFactory.GetCoin("POLIS")
-		if err != nil {
-			// If get coin fail, we should mark error, no spent anything.
-			shiftData.Status = hestia.ShiftStatusV2Error
-			_, err = s.Hestia.UpdateShiftV2(shiftData)
-			if err != nil {
-				return
-			}
-			return
-		}
-		feeTxID, err, _ := s.broadCastTx(polisCoinConfig, feeTx)
-		if err != nil {
-			// If broadcast fail, we should mark error, no spent anything.
-			shiftData.Status = hestia.ShiftStatusV2Error
-			_, err = s.Hestia.UpdateShiftV2(shiftData)
-			if err != nil {
-				return
-			}
-			return
-		}
-		shiftData.FeePayment.Txid = feeTxID
-	}
+func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShiftData models.PrepareShiftInfoV2, rawTx string) {
 	// Validate Payment RawTx
 	body := plutus.ValidateRawTxReq{
 		Coin:    shiftData.Payment.Coin,
@@ -347,12 +297,8 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 	}
 	valid, err := s.Plutus.ValidateRawTx(body)
 	if err != nil {
-		// If decode fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.ShiftStatusV2Error
-		if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
-			// If decode fail and payment is not POLIS, we should mark Refund to send back the fees.
-			shiftData.Status = hestia.ShiftStatusV2Error
-		}
+		shiftData.Message = "could not validate rawtx" + err.Error()
 		_, err = s.Hestia.UpdateShiftV2(shiftData)
 		if err != nil {
 			return
@@ -360,26 +306,27 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 		return
 	}
 	if !valid {
-		if storedShiftData.FromCoin != "POLIS" && storedShiftData.ToCoin != "POLIS" {
-			// If is not valid and payment is not POLIS, we should mark Refund to send back the fees.
-			shiftData.Status = hestia.ShiftStatusV2Error
+		shiftData.Status = hestia.ShiftStatusV2Error
+		shiftData.Message = "rawtx was invalid"
+		_, err = s.Hestia.UpdateShiftV2(shiftData)
+		if err != nil {
+			return
 		}
+		return
+
 	}
 	// Broadcast rawTx
 	coinConfig, err := coinFactory.GetCoin(shiftData.Payment.Coin)
 	if err != nil {
-		// If get coin fail and payment is POLIS, we should mark error.
 		shiftData.Status = hestia.ShiftStatusV2Error
-		if storedShiftData.FromCoin != "POLIS" {
-			// If get coin fail and payment is not POLIS, we should mark Refund to send back the fees.
-			shiftData.Status = hestia.ShiftStatusV2Refund
-		}
+		shiftData.Message = "failed to acquire coin from coin factory"
 		_, err = s.Hestia.UpdateShiftV2(shiftData)
 		if err != nil {
 			return
 		}
 		return
 	}
+
 	paymentTxid, err, message := s.broadCastTx(coinConfig, rawTx)
 	if err != nil {
 		// If broadcast fail and payment is POLIS, we should mark error.

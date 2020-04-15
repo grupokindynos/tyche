@@ -105,7 +105,6 @@ type StoreShiftV11 struct {
 
 type StoreShiftV2 struct {
 	RawTX      	string `json:"raw_tx"`
-	FeeTX      	string `json:"fee_tx"`
 	RefundAddr 	string `json:"refund_addr"`
 	HasFee     	bool   `json:"has_fee"`
 	ShiftId		string `json:"shift_id"`

@@ -43,10 +43,8 @@ func (p *TycheProcessorV2) Start() {
 		return
 	}
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(3)
 	go p.handleCreatedShifts(&wg)
-	go p.handlePendingShifts(&wg)
-
 	go p.handleConfirmedShifts(&wg)
 	go p.handleRefundShifts(&wg)
 	wg.Wait()
@@ -69,63 +67,35 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 			teleBot.SendError("Unable to get payment coin configuration: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
-		// Processor should only validate Payment coin if tx comes from or to POLIS
-		// Conditional statement is logic for the negation for "if its from or to polis"
-		if s.Payment.Coin != "POLIS" && s.FeePayment.Coin != "POLIS" {
-			feeCoinConfig, err := coinFactory.GetCoin(s.FeePayment.Coin)
-			if err != nil {
-				fmt.Println("Unable to get fee coin configuration: " + err.Error())
-				teleBot.SendError("Unable to get fee coin configuration: " + err.Error() + "\n Shift ID: " + s.ID)
-				continue
-			}
-			// Check if shift has enough confirmations
-			if p.SkipValidations || (s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) && s.FeePayment.Confirmations >= int32(feeCoinConfig.BlockchainInfo.MinConfirmations)) {
-				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
-				_, err = p.Hestia.UpdateShift(s)
-				if err != nil {
-					fmt.Println("Unable to update shift confirmations: " + err.Error())
-					continue
-				}
-				continue
-			}
-			err = checkTxId(&s.FeePayment)
-			if err != nil {
-				fmt.Println("Unable to get fee txId " + err.Error())
-				teleBot.SendError("Unable to get fee txId: " + err.Error() + "\n Shift ID: " + s.ID)
-				continue
-			}
-			feeConfirmations, err := p.getConfirmations(feeCoinConfig, s.FeePayment.Txid)
-			if err != nil {
-				fmt.Println("Unable to get fee coin confirmations: " + err.Error())
-				continue
-			}
-			s.FeePayment.Confirmations = int32(feeConfirmations)
-		} else {
-			// Check if shift has enough confirmations
-			if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
-				s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirmed)
-				_, err = p.Hestia.UpdateShift(s)
-				if err != nil {
-					fmt.Println("Unable to update shift confirmations: " + err.Error())
-					continue
-				}
-				continue
-			}
-		}
 
-		err = checkTxId(&s.Payment)
+		//Check for missing txid
+		err = checkTxIdWithFee(&s.Payment)
 		if err != nil {
 			fmt.Println("Unable to get txId " + err.Error())
 			teleBot.SendError("Unable to get txId: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
+
 		paymentConfirmations, err := p.getConfirmations(paymentCoinConfig, s.Payment.Txid)
 		if err != nil {
-			fmt.Println("Unable to get payment coin confirmations: " + err.Error())
+			s.Message = "could not get payment confirmations"
 			continue
 		}
 		s.Payment.Confirmations = int32(paymentConfirmations)
-		_, err = p.Hestia.UpdateShift(s)
+
+		// New one payment global validation. Check if shift has enough confirmations. @TODO Handle ERC20
+		if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
+			s.Status = hestia.ShiftStatusV2Confirmed
+			_, err = p.Hestia.UpdateShiftV2(s)
+			if err != nil {
+				fmt.Println("Unable to update shift confirmations: " + err.Error())
+				continue
+			}
+			continue
+		}
+
+		s.Status = hestia.ShiftStatusV2Confirmed
+		_, err = p.Hestia.UpdateShiftV2(s)
 		if err != nil {
 			fmt.Println("Unable to update shift confirmations: " + err.Error())
 			continue
@@ -133,7 +103,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 	}
 }
 
-func (p *TycheProcessorV2) handlePendingShifts(wg *sync.WaitGroup) {
+/*func (p *TycheProcessorV2) handlePendingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
 	shifts, err := p.getPendingShifts()
 	if err != nil {
@@ -151,7 +121,7 @@ func (p *TycheProcessorV2) handlePendingShifts(wg *sync.WaitGroup) {
 			}
 			continue
 		}
-		s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusConfirming)
+		s.Status = hestia.ShiftStatusV2Confirmed
 		_, err = p.Hestia.UpdateShift(s)
 		if err != nil {
 			fmt.Println("Unable to update shift " + err.Error())
@@ -159,7 +129,7 @@ func (p *TycheProcessorV2) handlePendingShifts(wg *sync.WaitGroup) {
 			continue
 		}
 	}
-}
+}*/
 
 func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -184,8 +154,8 @@ func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
 		}
 		shift.PaymentProof = txid
 		shift.ProofTimestamp = time.Now().Unix()
-		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusComplete)
-		_, err = p.Hestia.UpdateShift(shift)
+		shift.Status = hestia.ShiftStatusV2Complete
+		_, err = p.Hestia.UpdateShiftV2(shift)
 		if err != nil {
 			fmt.Println("unable to update shift")
 			teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
@@ -203,6 +173,7 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 		return
 	}
 	for _, shift := range shifts {
+		// TODO Handle refunds in a coin's coin
 		if shift.Payment.Coin == "POLIS" {
 			paymentBody := plutus.SendAddressBodyReq{
 				Address: shift.RefundAddr,
@@ -215,8 +186,8 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 				teleBot.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
 				continue
 			}
-			shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
-			_, err = p.Hestia.UpdateShift(shift)
+			shift.Status = hestia.ShiftStatusV2Refunded
+			_, err = p.Hestia.UpdateShiftV2(shift)
 			if err != nil {
 				fmt.Println("unable to update shift")
 				teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
@@ -224,45 +195,27 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 			}
 			continue
 		}
-		paymentBody := plutus.SendAddressBodyReq{
-			Address: shift.RefundAddr,
-			Coin:    "POLIS",
-			Amount:  amount.AmountType(shift.FeePayment.Amount).ToNormalUnit(),
-		}
-		_, err := p.Plutus.SubmitPayment(paymentBody)
-		if err != nil {
-			fmt.Println("unable to submit refund payment")
-			teleBot.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
-			continue
-		}
-		shift.Status = hestia.GetShiftStatusString(hestia.ShiftStatusRefunded)
-		_, err = p.Hestia.UpdateShift(shift)
-		if err != nil {
-			fmt.Println("unable to update shift")
-			teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
-			continue
-		}
 	}
 }
 
-func (p *TycheProcessorV2) getPendingShifts() ([]hestia.Shift, error) {
+func (p *TycheProcessorV2) getPendingShifts() ([]hestia.ShiftV2, error) {
 	return p.getShifts(hestia.ShiftStatusV2Created)
 }
 
-func (p *TycheProcessorV2) getConfirmingShifts() ([]hestia.Shift, error) {
+func (p *TycheProcessorV2) getConfirmingShifts() ([]hestia.ShiftV2, error) {
 	return p.getShifts(hestia.ShiftStatusV2ProcessingOrders)
 }
 
-func (p *TycheProcessorV2) getConfirmedShifts() ([]hestia.Shift, error) {
+func (p *TycheProcessorV2) getConfirmedShifts() ([]hestia.ShiftV2, error) {
 	return p.getShifts(hestia.ShiftStatusV2Confirmed)
 }
 
-func (p *TycheProcessorV2) getRefundShifts() ([]hestia.Shift, error) {
+func (p *TycheProcessorV2) getRefundShifts() ([]hestia.ShiftV2, error) {
 	return p.getShifts(hestia.ShiftStatusV2Refunded)
 }
 
-func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.Shift, error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift/all?filter="+hestia.GetShiftStatusv2String(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.ShiftV2, error) {
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift2/all?filter="+hestia.GetShiftStatusv2String(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +244,7 @@ func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.Shif
 	if !valid {
 		return nil, err
 	}
-	var response []hestia.Shift
+	var response []hestia.ShiftV2
 	err = json.Unmarshal(payload, &response)
 	if err != nil {
 		return nil, err
