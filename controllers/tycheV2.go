@@ -153,7 +153,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		inTrade = append(inTrade, newTrade)
 	}
 	if len(inTrade) > 0 {
-		inTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
+		inTrade[0].Amount = amount.AmountType(storedShift.Payment.Total).ToNormalUnit()
 	}
 
 	var outTrade []hestia.Trade
@@ -170,6 +170,10 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			FulfilledTime:  0,
 		}
 		outTrade = append(outTrade, newTrade)
+	}
+
+	if len(outTrade) > 0 {
+		outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
 	}
 
 	shift := hestia.ShiftV2{
