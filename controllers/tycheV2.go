@@ -153,7 +153,9 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		inTrade = append(inTrade, newTrade)
 	}
 	if len(inTrade) > 0 {
-		inTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
+		log.Println("Total satoshis ", storedShift.Payment.Total)
+		log.Println("Total satoshis ", amount.AmountType(storedShift.Payment.Total).ToNormalUnit())
+		inTrade[0].Amount = amount.AmountType(storedShift.Payment.Total).ToNormalUnit()
 	}
 
 	var outTrade []hestia.Trade
@@ -170,6 +172,10 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			FulfilledTime:  0,
 		}
 		outTrade = append(outTrade, newTrade)
+	}
+
+	if len(outTrade) > 0 {
+		outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
 	}
 
 	shift := hestia.ShiftV2{
@@ -192,8 +198,14 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		RefundAddr:     shiftPayment.RefundAddr,
 		PaymentProof:   "",
 		ProofTimestamp: 0,
-		InboundTrade: inTrade,
-		OutboundTrade: outTrade,
+		InboundTrade: hestia.DirectionalTrade{
+			Conversions: inTrade,
+			Status:      hestia.SimpleTxStatusCreated,
+		},
+		OutboundTrade: hestia.DirectionalTrade{
+			Conversions: outTrade,
+			Status:      hestia.SimpleTxStatusCreated,
+		},
 	}
 
 

@@ -63,7 +63,6 @@ func (a *AdrestiaRequests) GetPath(fromCoin string, toCoin string) (path models.
 		FromCoin:      fromCoin,
 		ToCoin:        toCoin,
 	}
-	log.Println(url)
 	req, err := mvt.CreateMVTToken("POST", url, "tyche", os.Getenv("MASTER_PASSWORD"), pathParams, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return
@@ -96,6 +95,46 @@ func (a *AdrestiaRequests) GetPath(fromCoin string, toCoin string) (path models.
 		return
 	}
 	err = json.Unmarshal(payload, &path)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (a *AdrestiaRequests) Withdraw(withdrawParams models.WithdrawParams) (withdrawal models.WithdrawResponse, err error) {
+	url := os.Getenv(a.AdrestiaUrl) + "withdraw"
+	req, err := mvt.CreateMVTToken("POST", url, "tyche", os.Getenv("MASTER_PASSWORD"), withdrawParams, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	if err != nil {
+		return
+	}
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer res.Body.Close()
+	tokenResponse, err := ioutil.ReadAll(res.Body)
+	log.Println(string(tokenResponse))
+	if err != nil {
+		return
+	}
+	var tokenString string
+	err = json.Unmarshal(tokenResponse, &tokenString)
+	if err != nil {
+		return
+	}
+	headerSignature := res.Header.Get("service")
+	if headerSignature == "" {
+		err = errors.New("no header signature")
+		return
+	}
+	valid, payload := mrt.VerifyMRTToken(headerSignature, tokenString, os.Getenv("ADRESTIA_PUBLIC_KEY"), os.Getenv("MASTER_PASSWORD"))
+	if !valid {
+		return
+	}
+	err = json.Unmarshal(payload, &withdrawal)
 	if err != nil {
 		return
 	}

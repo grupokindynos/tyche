@@ -197,6 +197,8 @@ github.com/grupokindynos/adrestia-go v0.0.0-20200412193152-66d4c94abc83 h1:S3/Cg
 github.com/grupokindynos/adrestia-go v0.0.0-20200412193152-66d4c94abc83/go.mod h1:lG6PNY4yS6dhVtsFj0/3Y0V1bbnZ+sVboPamtz4erac=
 github.com/grupokindynos/adrestia-go v0.0.0-20200414170441-61377a1e52d8 h1:wvTSQgRjqHkLzIHhPBrbrmH6XtoqGSa9K1AGMa3+ZZA=
 github.com/grupokindynos/adrestia-go v0.0.0-20200414170441-61377a1e52d8/go.mod h1:RdmUCe3NutGdw3qX7ARTgPykzPTVBv0YehRdtdOdG1U=
+github.com/grupokindynos/adrestia-go v0.0.0-20200416153124-c50e6e6db8a3 h1:QBWFmebcfd+cuUn4edO47phhekfpT1EHZr0TtdFmmy0=
+github.com/grupokindynos/adrestia-go v0.0.0-20200416153124-c50e6e6db8a3/go.mod h1:RdmUCe3NutGdw3qX7ARTgPykzPTVBv0YehRdtdOdG1U=
 github.com/grupokindynos/common v0.0.0-20200407165333-46d8e6ce26e7 h1:PRILDIScd6aHfL0aJopFvBMYQMDskdg07RVbkYQI+j4=
 github.com/grupokindynos/common v0.0.0-20200407165333-46d8e6ce26e7/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/common v0.0.0-20200413035500-ff4303be78b1 h1:T3CVPcK7+MoUeh348BSDGrPN6QiHinJNAZPRreF/Bhs=
@@ -206,12 +208,8 @@ github.com/grupokindynos/common v0.0.0-20200414155104-b082a9d128e0 h1:h+RoU2Xds8
 github.com/grupokindynos/common v0.0.0-20200414155104-b082a9d128e0/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/common v0.0.0-20200414160901-71d4b1479499 h1:GrOIP0os4al9IE9hm9108rXysJmX2ZPhQdWdmrLghp4=
 github.com/grupokindynos/common v0.0.0-20200414160901-71d4b1479499/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
-github.com/grupokindynos/common v0.0.0-20200414221034-12286b09e27c h1:c3cz0qC2eOKBZ86Ytg1iGSVbQbKRY5EepgttvjF7hDE=
-github.com/grupokindynos/common v0.0.0-20200414221034-12286b09e27c/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
-github.com/grupokindynos/common v0.0.0-20200415212846-e48457668465 h1:4qoE0Y2CUIYrSTgpAhHjkPWHuQcShrKCST/3LNHFZxM=
-github.com/grupokindynos/common v0.0.0-20200415212846-e48457668465/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
-github.com/grupokindynos/common v0.0.0-20200415215816-3161afe0890e h1:AKfV0xHDts0FrpgeGiJ/F8nKJgpoGNSiPu+pylL+5g8=
-github.com/grupokindynos/common v0.0.0-20200415215816-3161afe0890e/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
+github.com/grupokindynos/common v0.0.0-20200415225505-a38e9fd09a2d h1:lNMEH90x5xFSVyDUfY8LBpyDT6tH0ICgpFWXPjn7cKA=
+github.com/grupokindynos/common v0.0.0-20200415225505-a38e9fd09a2d/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/common v0.0.0-20200415225820-e88f4c02e191 h1:6PCJXsbMswvgTa8r6sgfCXjBVDEVqDBYiqLYzxfF1sY=
 github.com/grupokindynos/common v0.0.0-20200415225820-e88f4c02e191/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/common v0.0.0-20200416150154-3b165a297b39 h1:JlYhTB5BhWL00l2iRsx6sQlY4RY+KUOORDaQqXJ1Mr8=
@@ -491,6 +489,8 @@ golang.org/x/crypto v0.0.0-20200406173513-056763e48d71 h1:DOmugCavvUtnUD114C1Wh+
 golang.org/x/crypto v0.0.0-20200406173513-056763e48d71/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992 h1:B4Wjn2mWOWzjcWfyRYlf00lQ1/9h5vRKmQnhIKhMFR0=
 golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+golang.org/x/crypto v0.0.0-20200414173820-0848c9571904 h1:bXoxMPcSLOq08zI3/c5dEBT6lE4eh+jOh886GHrn6V8=
+golang.org/x/crypto v0.0.0-20200414173820-0848c9571904/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190125153040-c74c464bbbf2/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/lint v0.0.0-20180702182130-06c8688daad7/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
