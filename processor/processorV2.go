@@ -8,6 +8,7 @@ import (
 	coinFactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
+	"github.com/grupokindynos/common/obol"
 	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/tokens/mrt"
 	"github.com/grupokindynos/common/tokens/mvt"
@@ -15,6 +16,7 @@ import (
 	msgBot "github.com/grupokindynos/tyche/telegram"
 	"github.com/olympus-protocol/ogen/utils/amount"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -24,6 +26,7 @@ import (
 type TycheProcessorV2 struct {
 	Hestia          services.HestiaService
 	Plutus          services.PlutusService
+	Obol 			obol.ObolService
 	Adrestia        services.AdrestiaService
 	HestiaURL       string
 	SkipValidations bool
@@ -140,6 +143,7 @@ func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
 		return
 	}
 	for _, shift := range shifts {
+
 		amountHandler := amount.AmountType(shift.ToAmount)
 		paymentData := plutus.SendAddressBodyReq{
 			Address: shift.ToAddress,
@@ -160,6 +164,38 @@ func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
 			fmt.Println("unable to update shift")
 			teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
 			continue
+		}
+	}
+}
+
+func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
+	defer wg.Done()
+	shifts, err := p.getProcessingShifts()
+	if err != nil {
+		// telegram bot
+		return
+	}
+
+	for _, shift := range shifts {
+		var trades [2]*hestia.DirectionalTrade
+		trades[0] = &shift.InboundTrade
+		trades[1] = &shift.OutboundTrade
+
+		for _, trade := range trades {
+			switch trade.Status {
+			case hestia.SimpleTxStatusCreated:
+				p.handleCreatedTrade(trade)
+				break
+			case hestia.SimpleTxStatusPerformed:
+				p.handlePerformedTrade(trade)
+				break
+			}
+		}
+
+		_, err := p.Hestia.UpdateShiftV2(shift)
+		if err != nil {
+			log.Println(err)
+			//telegram bot
 		}
 	}
 }
@@ -198,8 +234,19 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 	}
 }
 
+func (p *TycheProcessorV2) handleCreatedTrade(trade *hestia.DirectionalTrade) {
+
+}
+
+func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) {
+}
+
 func (p *TycheProcessorV2) getPendingShifts() ([]hestia.ShiftV2, error) {
 	return p.getShifts(hestia.ShiftStatusV2Created)
+}
+
+func (p *TycheProcessorV2) getProcessingShifts() ([]hestia.ShiftV2, error) {
+	return p.getShifts(hestia.ShiftStatusV2ProcessingOrders)
 }
 
 func (p *TycheProcessorV2) getConfirmingShifts() ([]hestia.ShiftV2, error) {
