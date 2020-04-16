@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eabz/btcutil"
+	"github.com/eabz/btcutil/txscript"
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
 	"log"
@@ -138,6 +139,8 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	if err != nil {
 		return nil, err
 	}
+	inExchange := ""
+	outExchange := ""
 
 	// Create Trade Objects for two-way orders
 	var inTrade []hestia.Trade
@@ -153,6 +156,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
+		inExchange = trade.Exchange
 		inTrade = append(inTrade, newTrade)
 	}
 	if len(inTrade) > 0 {
@@ -174,6 +178,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
+		outExchange = trade.Exchange
 		outTrade = append(outTrade, newTrade)
 	}
 
@@ -204,10 +209,12 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		InboundTrade: hestia.DirectionalTrade{
 			Conversions: inTrade,
 			Status:      hestia.SimpleTxStatusCreated,
+			Exchange: inExchange,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
 			Conversions: outTrade,
 			Status:      hestia.SimpleTxStatusCreated,
+			Exchange: outExchange,
 		},
 	}
 
@@ -276,6 +283,11 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		return
 	}
 
+	if !pathInfo.Trade {
+		err = errors.New("shift pair not supported")
+		return
+	}
+
 	feeFlag := true
 	if selectedCoin.Shift.FeePercentage == 0 {
 		feeFlag = false
@@ -310,7 +322,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 		Amount:  shiftData.Payment.Amount,
 		Address: shiftData.Payment.Address,
 	}
-	valid, err := s.Plutus.ValidateRawTx(body)
+	valid, err := VerifyTxData(body)
 	if err != nil {
 		shiftData.Status = hestia.ShiftStatusV2Error
 		shiftData.Message = "could not validate rawtx" + err.Error()
@@ -415,25 +427,24 @@ func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		// Address Serialization
+		currentAddress, err := btcutil.DecodeAddress(data.Address, coinConfig.NetParams)
+		if err != nil {
+			return false, err
+		}
+		scriptAddr, err := txscript.PayToAddrScript(currentAddress)
+		if err != nil {
+			return false, err
+		}
 		for _, out := range tx.MsgTx().TxOut {
 			outAmount := btcutil.Amount(out.Value)
 			if outAmount == value {
 				isValue = true
 			}
-			for _, addr := range c.Address[coinConfig.Info.Tag].AddrInfo {
-				Addr, err := btcutil.DecodeAddress(addr.Addr, coinConfig.NetParams)
-				if err != nil {
-					return nil, err
-				}
-				scriptAddr, err := txscript.PayToAddrScript(Addr)
-				if err != nil {
-					return nil, err
-				}
-				if bytes.Equal(scriptAddr, out.PkScript) {
-					isAddress = true
-				}
+			if bytes.Equal(scriptAddr, out.PkScript) {
+				isAddress = true
 			}
 		}
 	}
-	return isAddress && isValue
+	return isAddress && isValue, nil
 }
