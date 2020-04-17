@@ -1,9 +1,13 @@
 package controllers
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/eabz/btcutil"
+	"github.com/eabz/btcutil/txscript"
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
 	"log"
@@ -135,6 +139,8 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	if err != nil {
 		return nil, err
 	}
+	inExchange := ""
+	outExchange := ""
 
 	// Create Trade Objects for two-way orders
 	var inTrade []hestia.Trade
@@ -150,6 +156,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
+		inExchange = trade.Exchange
 		inTrade = append(inTrade, newTrade)
 	}
 	if len(inTrade) > 0 {
@@ -171,6 +178,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
+		outExchange = trade.Exchange
 		outTrade = append(outTrade, newTrade)
 	}
 
@@ -201,10 +209,12 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		InboundTrade: hestia.DirectionalTrade{
 			Conversions: inTrade,
 			Status:      hestia.SimpleTxStatusCreated,
+			Exchange: inExchange,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
 			Conversions: outTrade,
 			Status:      hestia.SimpleTxStatusCreated,
+			Exchange: outExchange,
 		},
 	}
 
@@ -273,6 +283,11 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		return
 	}
 
+	if !pathInfo.Trade {
+		err = errors.New("shift pair not supported")
+		return
+	}
+
 	feeFlag := true
 	if selectedCoin.Shift.FeePercentage == 0 {
 		feeFlag = false
@@ -307,7 +322,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 		Amount:  shiftData.Payment.Amount,
 		Address: shiftData.Payment.Address,
 	}
-	valid, err := s.Plutus.ValidateRawTx(body)
+	valid, err := VerifyTxData(body)
 	if err != nil {
 		shiftData.Status = hestia.ShiftStatusV2Error
 		shiftData.Message = "could not validate rawtx" + err.Error()
@@ -360,4 +375,76 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 	if err != nil {
 		return
 	}
+}
+
+func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
+	coinConfig, err := coinFactory.GetCoin(data.Coin)
+	if err != nil {
+		return false, err
+	}
+	var isValue bool
+	var isAddress bool
+	if coinConfig.Info.Token || coinConfig.Info.Tag == "ETH" {
+		/*value := ValidateTxData.Amount
+		var tx *types.Transaction
+		rawtx, err := hex.DecodeString(ValidateTxData.RawTx)
+		if err != nil {
+			return nil, err
+		}
+		err = rlp.DecodeBytes(rawtx, &tx)
+		if err != nil {
+			return nil, err
+		}
+		//compare amount from the tx and the input body
+		var txBodyAmount int64
+		var txAddr common.Address
+		if coinConfig.Info.Token {
+			address, amount := DecodeERC20Data([]byte(hex.EncodeToString(tx.Data())))
+			txAddr = common.HexToAddress(string(address))
+			txBodyAmount = amount.Int64()
+		} else {
+			txBodyAmount = tx.Value().Int64()
+			txAddr = *tx.To()
+		}
+		if txBodyAmount == value {
+			isValue = true
+		}
+		bodyAddr := common.HexToAddress(ValidateTxData.Address)
+		//compare the address from the tx and the input body
+		if bytes.Equal(bodyAddr.Bytes(), txAddr.Bytes()) {
+			isAddress = true
+		}
+	*/
+	} else {
+		//bitcoin-like coins
+		value := btcutil.Amount(data.Amount)
+
+		rawTxBytes, err := hex.DecodeString(data.RawTx)
+		if err != nil {
+			return false, err
+		}
+		tx, err := btcutil.NewTxFromBytes(rawTxBytes)
+		if err != nil {
+			return false, err
+		}
+		// Address Serialization
+		currentAddress, err := btcutil.DecodeAddress(data.Address, coinConfig.NetParams)
+		if err != nil {
+			return false, err
+		}
+		scriptAddr, err := txscript.PayToAddrScript(currentAddress)
+		if err != nil {
+			return false, err
+		}
+		for _, out := range tx.MsgTx().TxOut {
+			outAmount := btcutil.Amount(out.Value)
+			if outAmount == value {
+				isValue = true
+			}
+			if bytes.Equal(scriptAddr, out.PkScript) {
+				isAddress = true
+			}
+		}
+	}
+	return isAddress && isValue, nil
 }
