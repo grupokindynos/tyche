@@ -171,12 +171,17 @@ func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
 
 func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
-	shifts, err := p.getProcessingShifts()
+	processingShifts, err := p.getProcessingShifts()
 	if err != nil {
 		// telegram bot
 		return
 	}
-
+	sentToUserShifts, err := p.getSentToUserShifts()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	shifts := append(processingShifts, sentToUserShifts...)
 	for _, shift := range shifts {
 		var trades [2] *hestia.DirectionalTrade
 		trades[0] = &shift.InboundTrade
@@ -199,14 +204,14 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 					})
 					if err != nil {
 						log.Println(err)
-						return
+						continue
 					}
-					trade.Status = hestia.ShiftV2TradeStatusWithdrew
+					trade.Status = hestia.ShiftV2TradeStatusWithdrawn
 					shift.Status = hestia.ShiftStatusV2SentToUser
 					shift.PaymentProof = res.TxId
 				}
 				break
-			case hestia.ShiftV2TradeStatusWithdrew:
+			case hestia.ShiftV2TradeStatusWithdrawn:
 				txId, err := p.Adrestia.GetWithdrawalTxHash(models.WithdrawInfo{
 					Exchange: trade.Exchange,
 					Asset: shift.ToCoin,
@@ -214,12 +219,21 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				})
 				if err != nil {
 					log.Println(err)
-					return
+					continue
 				}
 				if txId != "" {
 					shift.PaymentProof = txId
-					trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
+					trade.Status = hestia.ShiftV2TradeStatusUserDeposit
 				}
+				break
+			case hestia.ShiftV2TradeStatusUserDeposit:
+				amount, err := getUserReceivedAmount(shift.ToCoin, shift.ToAddress, shift.PaymentProof)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				shift.UserReceivedAmount = amount
+				trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
 			}
 		}
 
@@ -325,6 +339,10 @@ func (p *TycheProcessorV2) checkTradeStatus(trade *hestia.Trade) (hestia.Exchang
 
 func (p *TycheProcessorV2) getPendingShifts() ([]hestia.ShiftV2, error) {
 	return p.getShifts(hestia.ShiftStatusV2Created)
+}
+
+func (p *TycheProcessorV2) getSentToUserShifts() ([]hestia.ShiftV2, error) {
+	return p.getShifts(hestia.ShiftStatusV2SentToUser)
 }
 
 func (p *TycheProcessorV2) getProcessingShifts() ([]hestia.ShiftV2, error) {
