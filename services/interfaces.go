@@ -23,4 +23,8 @@ type PlutusService interface {
 type AdrestiaService interface {
 	GetAddress(coin string) (address models.AddressResponse, err error)
 	GetPath(fromCoin string, toCoin string) (path models.PathResponse, err error)
+	Withdraw(withdrawParams models.WithdrawParams) (withdrawal models.WithdrawInfo, err error)
+	Trade(tradeParams hestia.Trade) (txId string, err error)
+	GetTradeStatus(tradeParams hestia.Trade) (tradeInfo hestia.ExchangeOrderInfo, err error)
+	GetWithdrawalTxHash (withdrawParams models.WithdrawInfo) (txId string, err error)
 }

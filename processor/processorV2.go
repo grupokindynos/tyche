@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/adrestia-go/models"
 	"github.com/grupokindynos/common/blockbook"
 	coinFactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
@@ -177,19 +178,53 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 	}
 
 	for _, shift := range shifts {
-		var trades [2]*hestia.DirectionalTrade
+		var trades [2] *hestia.DirectionalTrade
 		trades[0] = &shift.InboundTrade
 		trades[1] = &shift.OutboundTrade
 
-		for _, trade := range trades {
+		for key, trade := range trades {
 			switch trade.Status {
-			case hestia.SimpleTxStatusCreated:
+			case hestia.ShiftV2TradeStatusCreated:
 				p.handleCreatedTrade(trade)
 				break
-			case hestia.SimpleTxStatusPerformed:
+			case hestia.ShiftV2TradeStatusPerforming:
 				p.handlePerformedTrade(trade)
 				break
+			case hestia.ShiftV2TradeStatusCompleted:
+				if key == 1 { // if this is an outbound trade
+					res, err := p.Adrestia.Withdraw(models.WithdrawParams{
+						Address: shift.ToAddress,
+						Asset: shift.ToCoin,
+						Amount: trade.Conversions[1].ReceivedAmount,
+					})
+					if err != nil {
+						log.Println(err)
+						return
+					}
+					trade.Status = hestia.ShiftV2TradeStatusWithdrew
+					shift.Status = hestia.ShiftStatusV2SentToUser
+					shift.PaymentProof = res.TxId
+				}
+				break
+			case hestia.ShiftV2TradeStatusWithdrew:
+				txId, err := p.Adrestia.GetWithdrawalTxHash(models.WithdrawInfo{
+					Exchange: trade.Exchange,
+					Asset: shift.ToCoin,
+					TxId: shift.PaymentProof,
+				})
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				if txId != "" {
+					shift.PaymentProof = txId
+					trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
+				}
 			}
+		}
+
+		if trades[0].Status == hestia.ShiftV2TradeStatusCompleted && trades[1].Status == hestia.ShiftV2TradeStatusWithdrawCompleted {
+			shift.Status = hestia.ShiftStatusV2Complete
 		}
 
 		_, err := p.Hestia.UpdateShiftV2(shift)
@@ -235,10 +270,57 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 }
 
 func (p *TycheProcessorV2) handleCreatedTrade(trade *hestia.DirectionalTrade) {
-
+	txId, err := p.Adrestia.Trade(trade.Conversions[0])
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	trade.Conversions[0].OrderId = txId
+	trade.Conversions[0].Status = hestia.ExchangeOrderStatusOpen
+	trade.Status = hestia.ShiftV2TradeStatusPerforming
 }
 
 func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) {
+	if trade.Conversions[0].Status == hestia.ExchangeOrderStatusCompleted {
+		status, err := p.checkTradeStatus(&trade.Conversions[1])
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if status == hestia.ExchangeOrderStatusCompleted {
+			trade.Status = hestia.ShiftV2TradeStatusCompleted
+		}
+	} else {
+		status, err := p.checkTradeStatus(&trade.Conversions[0])
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if status == hestia.ExchangeOrderStatusCompleted {
+			txId, err := p.Adrestia.Trade(trade.Conversions[1])
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			trade.Conversions[1].CreatedTime = time.Now().Unix()
+			trade.Conversions[1].Status = hestia.ExchangeOrderStatusOpen
+			trade.Conversions[1].OrderId = txId
+		}
+	}
+}
+
+func (p *TycheProcessorV2) checkTradeStatus(trade *hestia.Trade) (hestia.ExchangeOrderStatus, error) {
+	tradeInfo, err := p.Adrestia.GetTradeStatus(*trade)
+	if err != nil {
+		return hestia.ExchangeOrderStatusError, err
+	}
+	if tradeInfo.Status == hestia.ExchangeOrderStatusCompleted {
+		trade.ReceivedAmount = tradeInfo.ReceivedAmount
+		trade.Status = hestia.ExchangeOrderStatusCompleted
+		trade.FulfilledTime = time.Now().Unix()
+	}
+
+	return tradeInfo.Status, nil
 }
 
 func (p *TycheProcessorV2) getPendingShifts() ([]hestia.ShiftV2, error) {
