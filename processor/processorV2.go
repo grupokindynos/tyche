@@ -48,9 +48,9 @@ func (p *TycheProcessorV2) Start() {
 		return
 	}
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go p.handleCreatedShifts(&wg)
-	//go p.handleProcessingShifts(&wg)
+	wg.Add(2)
+	// go p.handleCreatedShifts(&wg)
+	go p.handleProcessingShifts(&wg)
 	//go p.handleRefundShifts(&wg)
 	wg.Wait()
 	fmt.Println("Shifts Processor Finished")
@@ -117,11 +117,13 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
 	processingShifts, err := p.getProcessingShifts()
+	fmt.Println("processing shifts", processingShifts)
 	if err != nil {
 		// telegram bot
 		return
 	}
 	sentToUserShifts, err := p.getSentToUserShifts()
+	fmt.Println("sent user shifts", sentToUserShifts)
 	if err != nil {
 		log.Println(err)
 		return

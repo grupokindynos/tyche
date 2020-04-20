@@ -27,5 +27,8 @@ type AdrestiaService interface {
 	Trade(tradeParams hestia.Trade) (txId string, err error)
 	GetTradeStatus(tradeParams hestia.Trade) (tradeInfo hestia.ExchangeOrderInfo, err error)
 	GetWithdrawalTxHash (withdrawParams models.WithdrawInfo) (txId string, err error)
+	// Retrieves information on the status for a given deposit, using a txid or an address (some exchanges).
 	DepositInfo(depositParams models.DepositParams) (depositInfo models.DepositInfo, err error)
+	// Retrieves the maximum balance of an asset relative to the amount of base stable coins in the output coin's exchange.
+	StockBalance(asset string) (balance models.BalanceResponse, err error)
 }

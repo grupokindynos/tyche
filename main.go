@@ -162,6 +162,7 @@ func ApplyRoutes(r *gin.Engine) {
 	{
 		apiV2.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.PrepareV2) })
 		apiV2.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.StoreV2) })
+		apiV2.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.BalanceV2) })
 	}
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")

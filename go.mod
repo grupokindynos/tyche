@@ -9,15 +9,15 @@ require (
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/grupokindynos/adrestia-go v0.0.0-20200420143758-9eec42d08d94
-	github.com/grupokindynos/common v0.0.0-20200419173610-adf111f6df3e
+	github.com/grupokindynos/adrestia-go v0.0.0-20200420222219-17b5ec3a4014
+	github.com/grupokindynos/common v0.0.0-20200420191014-7515bcdac72b
 	github.com/heroku/x v0.0.16
 	github.com/joho/godotenv v1.3.0
 	github.com/martinboehm/btcd v0.0.0-20200313230603-83af86142d93 // indirect
 	github.com/olympus-protocol/ogen v0.0.0-20200306215331-cfdea2a514e1
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
-	golang.org/x/crypto v0.0.0-20200420104511-884d27f42877 // indirect
-	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
+	golang.org/x/crypto v0.0.0-20200420201142-3c4aac89819a // indirect
+	golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f // indirect
 	gopkg.in/square/go-jose.v2 v2.5.0 // indirect
 )
