@@ -20,6 +20,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -47,21 +48,22 @@ func (p *TycheProcessorV2) Start() {
 		return
 	}
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 	go p.handleCreatedShifts(&wg)
-	go p.handleProcessingShifts(&wg)
-	go p.handleRefundShifts(&wg)
+	//go p.handleProcessingShifts(&wg)
+	//go p.handleRefundShifts(&wg)
 	wg.Wait()
 	fmt.Println("Shifts Processor Finished")
 }
 
+/*
+Handles created shifts, checks for minimum number of confirmations on blockchain. If txid is missing, it tries to find the txid.
+Kick starts the ProcessingShifts method.
+*/
 func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
-	/**
-	Handles created shifts, checks for minimum number of confirmations on blockchain. If txid is missing, it tries to find the txid.
-	Kickstarts the ProcessingShifts method.
-	 */
 	defer wg.Done()
 	shifts, err := p.getShifts(hestia.ShiftStatusV2Created)
+	fmt.Println("Created Shifts", shifts)
 	if err != nil {
 		fmt.Println("Confirming shifts processor finished with errors: " + err.Error())
 		teleBot.SendError("Confirming shifts processor finished with errors: " + err.Error())
@@ -111,68 +113,6 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 		}
 	}
 }
-
-/*func (p *TycheProcessorV2) handlePendingShifts(wg *sync.WaitGroup) {
-	defer wg.Done()
-	shifts, err := p.getPendingShifts()
-	if err != nil {
-		fmt.Println("Pending shifts processor finished with errors: " + err.Error())
-		teleBot.SendError("Pending shifts processor finished with errors: " + err.Error())
-		return
-	}
-	for _, s := range shifts {
-		if s.Timestamp+7200 < time.Now().Unix() {
-			s.Status = hestia.GetShiftStatusString(hestia.ShiftStatusError)
-			_, err = p.Hestia.UpdateShift(s)
-			if err != nil {
-				fmt.Println("Unable to update shift confirmations: " + err.Error())
-				continue
-			}
-			continue
-		}
-		s.Status = hestia.ShiftStatusV2Confirmed
-		_, err = p.Hestia.UpdateShift(s)
-		if err != nil {
-			fmt.Println("Unable to update shift " + err.Error())
-			teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + s.ID)
-			continue
-		}
-	}
-}*/
-
-/* func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
-	defer wg.Done()
-	shifts, err := p.getConfirmedShifts()
-	if err != nil {
-		fmt.Println("Confirmed shifts processor finished with errors: " + err.Error())
-		teleBot.SendError("Confirmed shifts processor finished with errors: " + err.Error())
-		return
-	}
-	for _, shift := range shifts {
-
-		amountHandler := amount.AmountType(shift.ToAmount)
-		paymentData := plutus.SendAddressBodyReq{
-			Address: shift.ToAddress,
-			Coin:    shift.ToCoin,
-			Amount:  amountHandler.ToNormalUnit(),
-		}
-		txid, err := p.Plutus.SubmitPayment(paymentData)
-		if err != nil {
-			fmt.Println("unable to submit payment")
-			teleBot.SendError("Unable to submit payment: " + err.Error() + "\n Shift ID: " + shift.ID)
-			continue
-		}
-		shift.PaymentProof = txid
-		shift.ProofTimestamp = time.Now().Unix()
-		shift.Status = hestia.ShiftStatusV2Complete
-		_, err = p.Hestia.UpdateShiftV2(shift)
-		if err != nil {
-			fmt.Println("unable to update shift")
-			teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
-			continue
-		}
-	}
-} */
 
 func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -386,7 +326,7 @@ func (p *TycheProcessorV2) getRefundShifts() ([]hestia.ShiftV2, error) {
 }
 
 func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.ShiftV2, error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift2/all?filter="+hestia.GetShiftStatusv2String(status), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift2/all?filter="+ strconv.FormatInt(int64(status), 10), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}

@@ -255,11 +255,13 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	proc := processor.Processor{
+	proc := processor.TycheProcessorV2{
 		Hestia:          &services.HestiaRequests{HestiaURL: hestiaEnv},
 		Plutus:          &services.PlutusRequests{},
 		HestiaURL:       hestiaEnv,
 		SkipValidations: skipValidations,
+		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+		Adrestia:      &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
 	}
 
 	go runCronMinutes(1, proc.Start, &wg) // 1 minute
