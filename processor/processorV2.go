@@ -49,13 +49,17 @@ func (p *TycheProcessorV2) Start() {
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go p.handleCreatedShifts(&wg)
-	go p.handleConfirmedShifts(&wg)
+	go p.handleProcessingShifts(&wg)
 	go p.handleRefundShifts(&wg)
 	wg.Wait()
 	fmt.Println("Shifts Processor Finished")
 }
 
 func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
+	/**
+	Handles created shifts, checks for minimum number of confirmations on blockchain. If txid is missing, it tries to find the txid.
+	Kickstarts the ProcessingShifts method.
+	 */
 	defer wg.Done()
 	shifts, err := p.getShifts(hestia.ShiftStatusV2Created)
 	if err != nil {
@@ -89,7 +93,8 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 
 		// New one payment global validation. Check if shift has enough confirmations. @TODO Handle ERC20
 		if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
-			s.Status = hestia.ShiftStatusV2Confirmed
+			s.Status = hestia.ShiftStatusV2ProcessingOrders
+			s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCreated
 			_, err = p.Hestia.UpdateShiftV2(s)
 			if err != nil {
 				fmt.Println("Unable to update shift confirmations: " + err.Error())
@@ -98,7 +103,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 			continue
 		}
 
-		s.Status = hestia.ShiftStatusV2Confirmed
+		s.Status = hestia.ShiftStatusV2ProcessingOrders
 		_, err = p.Hestia.UpdateShiftV2(s)
 		if err != nil {
 			fmt.Println("Unable to update shift confirmations: " + err.Error())
@@ -135,7 +140,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 	}
 }*/
 
-func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
+/* func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
 	shifts, err := p.getConfirmedShifts()
 	if err != nil {
@@ -167,7 +172,7 @@ func (p *TycheProcessorV2) handleConfirmedShifts(wg *sync.WaitGroup) {
 			continue
 		}
 	}
-}
+} */
 
 func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -189,6 +194,13 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 
 		for key, trade := range trades {
 			switch trade.Status {
+			case hestia.ShiftV2TradeStatusInitialized:
+				if key == 0 {
+					p.handleInboundDeposit(&shift)
+				}else if key == 1 {
+					// TODO Create trade for outbound order
+				}
+
 			case hestia.ShiftV2TradeStatusCreated:
 				p.handleCreatedTrade(trade)
 				break
@@ -227,12 +239,12 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				}
 				break
 			case hestia.ShiftV2TradeStatusUserDeposit:
-				amount, err := getUserReceivedAmount(shift.ToCoin, shift.ToAddress, shift.PaymentProof)
+				amountReceived, err := getUserReceivedAmount(shift.ToCoin, shift.ToAddress, shift.PaymentProof)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				shift.UserReceivedAmount = amount
+				shift.UserReceivedAmount = amountReceived
 				trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
 			}
 		}
@@ -282,6 +294,18 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 		}
 	}
 }
+
+/* func (p *TycheProcessorV2) askForExchangeDeposit(payment hestia.PaymentWithFee) (depositInfo models.DepositInfo, err error){
+	depositInfo, err = p.Adrestia.DepositInfo(models.DepositParams{
+		Asset:   payment.Coin,
+		TxId:    payment.Txid,
+		Address: payment.Address,
+	})
+	if err != nil {
+		return
+	}
+	return
+} */
 
 func (p *TycheProcessorV2) handleCreatedTrade(trade *hestia.DirectionalTrade) {
 	txId, err := p.Adrestia.Trade(trade.Conversions[0])
@@ -406,6 +430,22 @@ func (p *TycheProcessorV2) getConfirmations(coinConfig *coins.Coin, txid string)
 		return 0, err
 	}
 	return txData.Confirmations, nil
+}
+
+func (p *TycheProcessorV2) handleInboundDeposit(shift *hestia.ShiftV2) (){
+	depositInfo, err := p.Adrestia.DepositInfo(models.DepositParams{
+		Asset:   shift.Payment.Coin,
+		TxId:    shift.Payment.Txid,
+		Address: shift.Payment.Address,
+	})
+	if err != nil {
+		return
+	}
+	if depositInfo.DepositInfo.Status == hestia.ExchangeOrderStatusCompleted {
+		shift.InboundTrade.Status = hestia.ShiftV2TradeStatusCreated
+		return
+	}
+	return
 }
 
 

@@ -208,12 +208,12 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		ProofTimestamp: 0,
 		InboundTrade: hestia.DirectionalTrade{
 			Conversions: inTrade,
-			Status:      hestia.SimpleTxStatusCreated,
+			Status:      hestia.ShiftV2TradeStatusInitialized,
 			Exchange: inExchange,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
 			Conversions: outTrade,
-			Status:      hestia.SimpleTxStatusCreated,
+			Status:      hestia.ShiftV2TradeStatusInitialized,
 			Exchange: outExchange,
 		},
 	}

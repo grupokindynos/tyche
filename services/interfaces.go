@@ -27,4 +27,5 @@ type AdrestiaService interface {
 	Trade(tradeParams hestia.Trade) (txId string, err error)
 	GetTradeStatus(tradeParams hestia.Trade) (tradeInfo hestia.ExchangeOrderInfo, err error)
 	GetWithdrawalTxHash (withdrawParams models.WithdrawInfo) (txId string, err error)
+	DepositInfo(depositParams models.DepositParams) (depositInfo models.DepositInfo, err error)
 }
