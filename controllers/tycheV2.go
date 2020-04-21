@@ -153,6 +153,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			ToCoin:         trade.ToCoin,
 			Symbol:         trade.Trade.Book,
 			Side:           trade.Trade.Type,
+			Exchange: 		trade.Exchange,
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
@@ -175,6 +176,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			ToCoin:         trade.ToCoin,
 			Symbol:         trade.Trade.Book,
 			Side:           trade.Trade.Type,
+			Exchange: 		trade.Exchange,
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}

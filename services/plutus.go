@@ -13,10 +13,12 @@ import (
 	"github.com/grupokindynos/common/tokens/mvt"
 )
 
-type PlutusRequests struct{}
+type PlutusRequests struct{
+	PlutusUrl string
+}
 
 func (p *PlutusRequests) GetWalletBalance(coin string) (plutus.Balance, error) {
-	req, err := mvt.CreateMVTToken("GET", plutus.ProductionURL+"/balance/"+coin, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", p.PlutusUrl+"/balance/"+coin, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return plutus.Balance{}, err
 	}
@@ -57,7 +59,7 @@ func (p *PlutusRequests) GetWalletBalance(coin string) (plutus.Balance, error) {
 }
 
 func (p *PlutusRequests) GetNewPaymentAddress(coin string) (addr string, err error) {
-	req, err := mvt.CreateMVTToken("GET", plutus.ProductionURL+"/address/"+coin, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", p.PlutusUrl+"/address/"+coin, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return addr, err
 	}
@@ -95,7 +97,7 @@ func (p *PlutusRequests) GetNewPaymentAddress(coin string) (addr string, err err
 }
 
 func (p *PlutusRequests) ValidateRawTx(body plutus.ValidateRawTxReq) (valid bool, err error) {
-	req, err := mvt.CreateMVTToken("POST", plutus.ProductionURL+"/validate/tx", "tyche", os.Getenv("MASTER_PASSWORD"), body, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("POST", p.PlutusUrl+"/validate/tx", "tyche", os.Getenv("MASTER_PASSWORD"), body, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return false, err
 	}
@@ -141,7 +143,7 @@ func (p *PlutusRequests) ValidateRawTx(body plutus.ValidateRawTxReq) (valid bool
 }
 
 func (p *PlutusRequests) SubmitPayment(body plutus.SendAddressBodyReq) (txid string, err error) {
-	req, err := mvt.CreateMVTToken("POST", plutus.ProductionURL+"/send/address", "tyche", os.Getenv("MASTER_PASSWORD"), body, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("POST", p.PlutusUrl+"/send/address", "tyche", os.Getenv("MASTER_PASSWORD"), body, os.Getenv("PLUTUS_AUTH_USERNAME"), os.Getenv("PLUTUS_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return txid, err
 	}

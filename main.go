@@ -47,6 +47,7 @@ var (
 var (
 	hestiaEnv       string
 	adrestiaEnv     string
+	plutusEnv		string
 	noTxsAvailable  bool
 	skipValidations bool
 	devMode			bool
@@ -71,6 +72,7 @@ func main() {
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
 		adrestiaEnv = "ADRESTIA_LOCAL_URL"
+		plutusEnv = "PLUTUS_LOCAL_URL"
 
 		// check if testing flags were set
 		noTxsAvailable = *noTxs
@@ -79,7 +81,8 @@ func main() {
 	} else {
 		adrestiaEnv = "ADRESTIA_PRODUCTION_URL"
 		hestiaEnv = "HESTIA_PRODUCTION_URL"
-		adrestiaEnv = "ADRESTIA_LOCAL_URL"
+		plutusEnv = "PLUTUS_PRODUCTION_URL"
+
 		if *noTxs || *skipVal {
 			fmt.Println("cannot set testing flags without -local flag")
 			os.Exit(1)
@@ -118,7 +121,7 @@ func ApplyRoutes(r *gin.Engine) {
 		PrepareShifts: prepareShiftsMap,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
-		Plutus:        &services.PlutusRequests{},
+		Plutus:        &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
 		DevMode:	   devMode,
 	}
@@ -128,7 +131,7 @@ func ApplyRoutes(r *gin.Engine) {
 		PrepareShifts: prepareShiftsMapV2,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
-		Plutus:        &services.PlutusRequests{},
+		Plutus:        &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
 		Adrestia:      &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
 		DevMode:	   devMode,
@@ -257,7 +260,7 @@ func runCrons(mainWg *sync.WaitGroup) {
 	wg.Add(1)
 	proc := processor.TycheProcessorV2{
 		Hestia:          &services.HestiaRequests{HestiaURL: hestiaEnv},
-		Plutus:          &services.PlutusRequests{},
+		Plutus:          &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		HestiaURL:       hestiaEnv,
 		SkipValidations: skipValidations,
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},

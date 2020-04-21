@@ -48,10 +48,10 @@ func (p *TycheProcessorV2) Start() {
 		return
 	}
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(3)
 	go p.handleCreatedShifts(&wg)
-	//go p.handleProcessingShifts(&wg)
-	//go p.handleRefundShifts(&wg)
+	go p.handleProcessingShifts(&wg)
+	go p.handleRefundShifts(&wg)
 	wg.Wait()
 	fmt.Println("Shifts Processor Finished")
 }
@@ -137,10 +137,7 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 			case hestia.ShiftV2TradeStatusInitialized:
 				if key == 0 {
 					p.handleInboundDeposit(&shift)
-				}else if key == 1 {
-					// TODO Create trade for outbound order
 				}
-
 			case hestia.ShiftV2TradeStatusCreated:
 				p.handleCreatedTrade(trade)
 				break
@@ -253,6 +250,7 @@ func (p *TycheProcessorV2) handleCreatedTrade(trade *hestia.DirectionalTrade) {
 		log.Println(err)
 		return
 	}
+	trade.Conversions[0].CreatedTime = time.Now().Unix()
 	trade.Conversions[0].OrderId = txId
 	trade.Conversions[0].Status = hestia.ExchangeOrderStatusOpen
 	trade.Status = hestia.ShiftV2TradeStatusPerforming
@@ -275,6 +273,7 @@ func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) 
 			return
 		}
 		if status == hestia.ExchangeOrderStatusCompleted {
+			trade.Conversions[1].Amount = trade.Conversions[0].ReceivedAmount
 			txId, err := p.Adrestia.Trade(trade.Conversions[1])
 			if err != nil {
 				log.Println(err)
