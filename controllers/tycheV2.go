@@ -54,11 +54,20 @@ func (s *TycheControllerV2) StatusV2(string, []byte, models.Params) (interface{}
 }
 
 func (s *TycheControllerV2) BalanceV2(_ string, _ []byte, params models.Params) (interface{}, error) {
-	balance, err := s.Plutus.GetWalletBalance(params.Coin)
+	balance, err := s.Adrestia.StockBalance(params.Coin)
 	if err != nil {
 		return nil, err
 	}
-	return balance, nil
+	rate, err := s.Obol.GetCoin2CoinRates(balance.Asset, params.Coin)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(rate, balance.Balance)
+	response := plutus.Balance{
+		Confirmed:   balance.Balance * rate,
+		Unconfirmed: 0,
+	}
+	return response, nil
 }
 
 func (s *TycheControllerV2) broadCastTx(coinConfig *coins.Coin, rawTx string) (string, error, string) {

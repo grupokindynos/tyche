@@ -4,6 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/grupokindynos/adrestia-go/models"
 	"github.com/grupokindynos/common/blockbook"
 	coinFactory "github.com/grupokindynos/common/coin-factory"
@@ -16,19 +24,12 @@ import (
 	"github.com/grupokindynos/tyche/services"
 	msgBot "github.com/grupokindynos/tyche/telegram"
 	"github.com/olympus-protocol/ogen/utils/amount"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"os"
-	"strconv"
-	"sync"
-	"time"
 )
 
 type TycheProcessorV2 struct {
 	Hestia          services.HestiaService
 	Plutus          services.PlutusService
-	Obol 			obol.ObolService
+	Obol            obol.ObolService
 	Adrestia        services.AdrestiaService
 	HestiaURL       string
 	SkipValidations bool
@@ -117,18 +118,20 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 	defer wg.Done()
 	processingShifts, err := p.getProcessingShifts()
+	fmt.Println("processing shifts", processingShifts)
 	if err != nil {
 		// telegram bot
 		return
 	}
 	sentToUserShifts, err := p.getSentToUserShifts()
+	fmt.Println("sent user shifts", sentToUserShifts)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	shifts := append(processingShifts, sentToUserShifts...)
 	for _, shift := range shifts {
-		var trades [2] *hestia.DirectionalTrade
+		var trades [2]*hestia.DirectionalTrade
 		trades[0] = &shift.InboundTrade
 		trades[1] = &shift.OutboundTrade
 
@@ -148,8 +151,8 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				if key == 1 { // if this is an outbound trade
 					res, err := p.Adrestia.Withdraw(models.WithdrawParams{
 						Address: shift.ToAddress,
-						Asset: shift.ToCoin,
-						Amount: trade.Conversions[1].ReceivedAmount,
+						Asset:   shift.ToCoin,
+						Amount:  trade.Conversions[1].ReceivedAmount,
 					})
 					if err != nil {
 						log.Println(err)
@@ -163,8 +166,8 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 			case hestia.ShiftV2TradeStatusWithdrawn:
 				txId, err := p.Adrestia.GetWithdrawalTxHash(models.WithdrawInfo{
 					Exchange: trade.Exchange,
-					Asset: shift.ToCoin,
-					TxId: shift.PaymentProof,
+					Asset:    shift.ToCoin,
+					TxId:     shift.PaymentProof,
 				})
 				if err != nil {
 					log.Println(err)
@@ -325,7 +328,7 @@ func (p *TycheProcessorV2) getRefundShifts() ([]hestia.ShiftV2, error) {
 }
 
 func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.ShiftV2, error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift2/all?filter="+ strconv.FormatInt(int64(status), 10), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(p.HestiaURL)+"/shift2/all?filter="+strconv.FormatInt(int64(status), 10), "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +374,7 @@ func (p *TycheProcessorV2) getConfirmations(coinConfig *coins.Coin, txid string)
 	return txData.Confirmations, nil
 }
 
-func (p *TycheProcessorV2) handleInboundDeposit(shift *hestia.ShiftV2) (){
+func (p *TycheProcessorV2) handleInboundDeposit(shift *hestia.ShiftV2) {
 	depositInfo, err := p.Adrestia.DepositInfo(models.DepositParams{
 		Asset:   shift.Payment.Coin,
 		TxId:    shift.Payment.Txid,
@@ -386,6 +389,3 @@ func (p *TycheProcessorV2) handleInboundDeposit(shift *hestia.ShiftV2) (){
 	}
 	return
 }
-
-
-
