@@ -161,6 +161,7 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 					trade.Status = hestia.ShiftV2TradeStatusWithdrawn
 					shift.Status = hestia.ShiftStatusV2SentToUser
 					shift.PaymentProof = res.TxId
+					shift.ProofTimestamp = time.Now().Unix()
 				}
 				break
 			case hestia.ShiftV2TradeStatusWithdrawn:
