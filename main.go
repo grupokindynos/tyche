@@ -141,7 +141,7 @@ func ApplyRoutes(r *gin.Engine) {
 	go checkAndRemoveShifts(tycheCtrl)
 	go checkAndRemoveV2Shifts(tycheV2Ctrl)
 
-	api := r.Group("/")
+	/* api := r.Group("/")
 	{
 		api.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Balance) })
 		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Status) })
@@ -150,7 +150,7 @@ func ApplyRoutes(r *gin.Engine) {
 	}
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")
-	})
+	})*/
 
 	apiV11 := r.Group("/v1.1/")
 	{
@@ -166,6 +166,7 @@ func ApplyRoutes(r *gin.Engine) {
 		apiV2.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.PrepareV2) })
 		apiV2.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.StoreV2) })
 		apiV2.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.BalanceV2) })
+		apiV2.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.StatusV2) })
 	}
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")
