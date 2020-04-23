@@ -177,6 +177,8 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				if txId != "" {
 					shift.PaymentProof = txId
 					trade.Status = hestia.ShiftV2TradeStatusUserDeposit
+				} else if (time.Now().Unix() - shift.ProofTimestamp) > 15 * 60 {
+					trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
 				}
 				break
 			case hestia.ShiftV2TradeStatusUserDeposit:
