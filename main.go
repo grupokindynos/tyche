@@ -41,10 +41,13 @@ type CurrentTime struct {
 var (
 	currTime         CurrentTime
 	prepareShiftsMap = make(map[string]models.PrepareShiftInfo)
+	prepareShiftsMapV2 = make(map[string]models.PrepareShiftInfoV2)
 )
 
 var (
 	hestiaEnv       string
+	adrestiaEnv     string
+	plutusEnv		string
 	noTxsAvailable  bool
 	skipValidations bool
 	devMode			bool
@@ -68,13 +71,18 @@ func main() {
 	// If flag was set, change the hestia request url to be local
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
+		adrestiaEnv = "ADRESTIA_LOCAL_URL"
+		plutusEnv = "PLUTUS_LOCAL_URL"
 
 		// check if testing flags were set
 		noTxsAvailable = *noTxs
 		skipValidations = *skipVal
 
 	} else {
+		adrestiaEnv = "ADRESTIA_PRODUCTION_URL"
 		hestiaEnv = "HESTIA_PRODUCTION_URL"
+		plutusEnv = "PLUTUS_PRODUCTION_URL"
+
 		if *noTxs || *skipVal {
 			fmt.Println("cannot set testing flags without -local flag")
 			os.Exit(1)
@@ -113,13 +121,27 @@ func ApplyRoutes(r *gin.Engine) {
 		PrepareShifts: prepareShiftsMap,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
-		Plutus:        &services.PlutusRequests{},
+		Plutus:        &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
 		DevMode:	   devMode,
 	}
 
+	// Service Instances
+	tycheV2Ctrl := &controllers.TycheControllerV2{
+		PrepareShifts: prepareShiftsMapV2,
+		TxsAvailable:  !noTxsAvailable,
+		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
+		Plutus:        &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
+		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+		Adrestia:      &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
+		DevMode:	   devMode,
+	}
+
+	// Backward compatibility
 	go checkAndRemoveShifts(tycheCtrl)
-	api := r.Group("/")
+	go checkAndRemoveV2Shifts(tycheV2Ctrl)
+
+	/* api := r.Group("/")
 	{
 		api.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Balance) })
 		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Status) })
@@ -128,12 +150,23 @@ func ApplyRoutes(r *gin.Engine) {
 	}
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")
+	})*/
+
+	apiV11 := r.Group("/v1.1/")
+	{
+		apiV11.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareV11) })
+		apiV11.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreV11) })
+	}
+	r.NoRoute(func(c *gin.Context) {
+		c.String(http.StatusNotFound, "Not Found")
 	})
 
 	apiV2 := r.Group("/v2/")
 	{
-		apiV2.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareV2) })
-		apiV2.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreV2) })
+		apiV2.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.PrepareV2) })
+		apiV2.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.StoreV2) })
+		apiV2.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.BalanceV2) })
+		apiV2.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheV2Ctrl.StatusV2) })
 	}
 	r.NoRoute(func(c *gin.Context) {
 		c.String(http.StatusNotFound, "Not Found")
@@ -227,11 +260,13 @@ func runCrons(mainWg *sync.WaitGroup) {
 	}()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	proc := processor.Processor{
+	proc := processor.TycheProcessorV2{
 		Hestia:          &services.HestiaRequests{HestiaURL: hestiaEnv},
-		Plutus:          &services.PlutusRequests{},
+		Plutus:          &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		HestiaURL:       hestiaEnv,
 		SkipValidations: skipValidations,
+		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+		Adrestia:      &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
 	}
 
 	go runCronMinutes(1, proc.Start, &wg) // 1 minute
@@ -252,6 +287,21 @@ func runCronMinutes(schedule int, function func(), wg *sync.WaitGroup) {
 }
 
 func checkAndRemoveShifts(ctrl *controllers.TycheController) {
+	for {
+		time.Sleep(time.Second * 60)
+		log.Print("Removing obsolete shifts request")
+		count := 0
+		for k, v := range ctrl.PrepareShifts {
+			if time.Now().Unix() > v.Timestamp+prepareShiftTimeframe {
+				count += 1
+				ctrl.RemoveShiftFromMap(k)
+			}
+		}
+		log.Printf("Removed %v shifts", count)
+	}
+}
+
+func checkAndRemoveV2Shifts(ctrl *controllers.TycheControllerV2) {
 	for {
 		time.Sleep(time.Second * 60)
 		log.Print("Removing obsolete shifts request")
