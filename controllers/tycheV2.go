@@ -228,7 +228,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		},
 		OutboundTrade: hestia.DirectionalTrade{
 			Conversions: outTrade,
-			Status:      hestia.ShiftV2TradeStatusInitialized,
+			Status:      hestia.ShiftV2TradeStatusCreated,
 			Exchange: outExchange,
 		},
 	}
