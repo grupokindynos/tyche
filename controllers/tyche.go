@@ -271,6 +271,11 @@ func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (str
 	if !s.TxsAvailable {
 		return "not published due no-txs flag", nil, ""
 	}
+	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
+		if coinConfig.Info.Token {
+			coinConfig, _ = coinfactory.GetCoin("ETH")
+		}
+	}
 	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
 	return blockbookWrapper.SendTxWithMessage(rawTx)
 }
@@ -299,7 +304,7 @@ func (s *TycheController) RemoveShiftFromMap(uid string) {
 
 // OpenShift
 
-func (s *TycheController) OpenBalance(_ string, _ []byte, params models.Params) (interface{}, error){
+func (s *TycheController) OpenBalance(_ string, _ []byte, params models.Params) (interface{}, error) {
 	balance, err := s.Plutus.GetWalletBalance(params.Coin)
 	if err != nil {
 		return nil, err
@@ -324,9 +329,8 @@ func (s *TycheController) OpenPrepare(uid string, payload []byte, _ models.Param
 	return res, nil
 }
 
-
-func (s *TycheController) OpenStore(uid string, payload []byte, _ models.Params) (interface{}, error){
-	res, err := s.StoreV11(uid, payload,  models.Params{})
+func (s *TycheController) OpenStore(uid string, payload []byte, _ models.Params) (interface{}, error) {
+	res, err := s.StoreV11(uid, payload, models.Params{})
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +368,7 @@ func (s *TycheController) PrepareV11(_ string, payload []byte, _ models.Params) 
 		Payment:        payment,
 		Fee:            feePayment,
 		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
-		ShiftId: prepareShift.ID,
+		ShiftId:        prepareShift.ID,
 	}
 	s.AddShiftToMap(prepareShift.ID, prepareShift)
 	return prepareResponse, nil
@@ -472,7 +476,7 @@ func GetServiceConfig(data models.PrepareShiftRequest, hestiaService services.He
 	return
 }
 
-func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, plutusService services.PlutusService) (amountTo amount.AmountType,payment models.PaymentInfo, feePayment models.PaymentInfo, err error){
+func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, plutusService services.PlutusService) (amountTo amount.AmountType, payment models.PaymentInfo, feePayment models.PaymentInfo, err error) {
 	amountHandler := amount.AmountType(prepareData.Amount)
 	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {

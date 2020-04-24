@@ -39,18 +39,18 @@ type CurrentTime struct {
 }
 
 var (
-	currTime         CurrentTime
-	prepareShiftsMap = make(map[string]models.PrepareShiftInfo)
+	currTime           CurrentTime
+	prepareShiftsMap   = make(map[string]models.PrepareShiftInfo)
 	prepareShiftsMapV2 = make(map[string]models.PrepareShiftInfoV2)
 )
 
 var (
 	hestiaEnv       string
 	adrestiaEnv     string
-	plutusEnv		string
+	plutusEnv       string
 	noTxsAvailable  bool
 	skipValidations bool
-	devMode			bool
+	devMode         bool
 )
 
 const prepareShiftTimeframe = 60 * 5 // 5 minutes
@@ -71,7 +71,7 @@ func main() {
 	// If flag was set, change the hestia request url to be local
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
-		adrestiaEnv = "ADRESTIA_LOCAL_URL"
+		//adrestiaEnv = "ADRESTIA_LOCAL_URL"
 		plutusEnv = "PLUTUS_LOCAL_URL"
 
 		// check if testing flags were set
@@ -123,7 +123,7 @@ func ApplyRoutes(r *gin.Engine) {
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
 		Plutus:        &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
-		DevMode:	   devMode,
+		DevMode:       devMode,
 	}
 
 	// Service Instances
@@ -134,7 +134,7 @@ func ApplyRoutes(r *gin.Engine) {
 		Plutus:        &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
 		Adrestia:      &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
-		DevMode:	   devMode,
+		DevMode:       devMode,
 	}
 
 	// Backward compatibility
@@ -178,9 +178,9 @@ func ApplyRoutes(r *gin.Engine) {
 		username: password,
 	}))
 	{
-		openApi.GET("balance/:coin", func(context *gin.Context) {ValidateOpenRequest(context, tycheCtrl.OpenBalance)})
-		openApi.GET("status", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenStatus)})
-		openApi.POST("prepare", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenPrepare)})
+		openApi.GET("balance/:coin", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenBalance) })
+		openApi.GET("status", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenStatus) })
+		openApi.POST("prepare", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenPrepare) })
 		openApi.POST("new", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenStore) })
 	}
 }
@@ -265,8 +265,8 @@ func runCrons(mainWg *sync.WaitGroup) {
 		Plutus:          &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		HestiaURL:       hestiaEnv,
 		SkipValidations: skipValidations,
-		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
-		Adrestia:      &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
+		Obol:            &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
+		Adrestia:        &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
 	}
 
 	go runCronMinutes(1, proc.Start, &wg) // 1 minute
