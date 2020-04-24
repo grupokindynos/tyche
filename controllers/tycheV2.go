@@ -46,7 +46,7 @@ func (s *TycheControllerV2) StatusV2(uid string, _ []byte, _ models.Params) (int
 	if s.DevMode {
 		return true, nil
 	}
-	if uid == "gwY3fy79LZMtUbSNBDoom7llGfh2" || uid == "oXuH5LwghkQG2JPYEYt1jJ08WU72" || uid == "dCtcq9M4JGMo5TraWv2GhkYclHR2" || uid == "WUNEUCLsoeRsXbtVOythROXqXk93" || uid == "m6hadvwAb4Z7IaOZAd1MDPSUVtk1" || uid == "QqDLwEfxKKZMFr2jMSwu1Mfh2I53" || uid == "aB0bQYzk5LhADlDGoeE80bEzSaw1" || uid == "HMOXcoZJxfMKFca9IukZIaqI2Z02"{
+	if uid == "gwY3fy79LZMtUbSNBDoom7llGfh2" || uid == "oXuH5LwghkQG2JPYEYt1jJ08WU72" || uid == "dCtcq9M4JGMo5TraWv2GhkYclHR2" || uid == "WUNEUCLsoeRsXbtVOythROXqXk93" || uid == "m6hadvwAb4Z7IaOZAd1MDPSUVtk1" || uid == "QqDLwEfxKKZMFr2jMSwu1Mfh2I53" || uid == "aB0bQYzk5LhADlDGoeE80bEzSaw1" || uid == "HMOXcoZJxfMKFca9IukZIaqI2Z02" || uid == "yz70K4OwehRgjVGSeUfN6AcM1yR2"{
 		return true, nil
 	}
 	status, err := s.Hestia.GetShiftStatus()
