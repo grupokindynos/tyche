@@ -127,6 +127,7 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
 		Path: payment.Conversions,
+		UsdRate: payment.FiatInfo.Amount,
 	}
 	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
@@ -198,7 +199,10 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	}
 
 	if len(outTrade) > 0 {
-		outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
+		// Sets the initial trade output amount for the ooutbound trades
+		//outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
+		log.Println("Amount Check: ", amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() * storedShift.UsdRate, "or precalculated ", storedShift.ToAmountUSD)
+		outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() * storedShift.UsdRate
 	}
 
 	shift := hestia.ShiftV2{
