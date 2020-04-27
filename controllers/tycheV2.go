@@ -127,7 +127,7 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
 		Timestamp:  time.Now().Unix(),
 		Path: payment.Conversions,
-		UsdRate: payment.FiatInfo.Amount,
+		StableCoinAmount: payment.FiatInfo.Amount,
 	}
 	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
@@ -201,8 +201,8 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	if len(outTrade) > 0 {
 		// Sets the initial trade output amount for the ooutbound trades
 		//outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
-		log.Println("Amount Check: ", amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() * storedShift.UsdRate, "or precalculated ", storedShift.ToAmountUSD)
-		outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() * storedShift.UsdRate
+		log.Println("Amount Check: ", storedShift.StableCoinAmount, "or precalculated ", storedShift.ToAmountUSD)
+		outTrade[0].Amount = storedShift.StableCoinAmount
 	}
 
 	shift := hestia.ShiftV2{
@@ -235,6 +235,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			Status:      hestia.ShiftV2TradeStatusCreated,
 			Exchange: outExchange,
 		},
+		OriginalUsdRate: amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() / storedShift.StableCoinAmount,
 	}
 
 
@@ -250,7 +251,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error){
 	amountHandler := amount.AmountType(prepareData.Amount)
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
-	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage/100))
+	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage / 100.0))
 	fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
 
 	// Retrieve conversion rates
