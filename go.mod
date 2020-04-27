@@ -10,7 +10,7 @@ require (
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grupokindynos/adrestia-go v0.0.0-20200420222219-17b5ec3a4014
-	github.com/grupokindynos/common v0.0.0-20200427021452-e86d1f4518dd
+	github.com/grupokindynos/common v0.0.0-20200427170426-848158ed0a90
 	github.com/heroku/x v0.0.16
 	github.com/joho/godotenv v1.3.0
 	github.com/martinboehm/btcd v0.0.0-20200313230603-83af86142d93 // indirect
