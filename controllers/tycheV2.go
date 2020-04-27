@@ -118,6 +118,9 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		return nil, err
 	}
 
+	if payment.FiatInfo.Amount < 18.0 {
+		return nil, cerrors.ErrorShiftMinimumAmount
+	}
 	prepareShift := models.PrepareShiftInfoV2{
 		ID:         utils.RandomString(),
 		FromCoin:   prepareData.FromCoin,
