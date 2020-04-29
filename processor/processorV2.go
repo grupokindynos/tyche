@@ -157,10 +157,11 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				break
 			case hestia.ShiftV2TradeStatusCompleted:
 				if key == 1 { // if this is an outbound trade
+					lastPos := len(trade.Conversions) - 1
 					res, err := p.Adrestia.Withdraw(models.WithdrawParams{
 						Address: shift.ToAddress,
 						Asset:   shift.ToCoin,
-						Amount:  trade.Conversions[1].ReceivedAmount,
+						Amount:  trade.Conversions[lastPos].ReceivedAmount,
 					})
 					if err != nil {
 						log.Println(err)
@@ -185,7 +186,7 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				if txId != "" {
 					shift.PaymentProof = txId
 					trade.Status = hestia.ShiftV2TradeStatusUserDeposit
-				} else if (time.Now().Unix() - shift.ProofTimestamp) > 15*60 {
+				} else if (time.Now().Unix() - shift.ProofTimestamp) > 10 * 60 {
 					trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
 				}
 				break
@@ -287,15 +288,19 @@ func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) 
 			return
 		}
 		if status == hestia.ExchangeOrderStatusCompleted {
-			trade.Conversions[1].Amount = trade.Conversions[0].ReceivedAmount
-			txId, err := p.Adrestia.Trade(trade.Conversions[1])
-			if err != nil {
-				log.Println(err)
-				return
+			if len(trade.Conversions) > 1 {
+				trade.Conversions[1].Amount = trade.Conversions[0].ReceivedAmount
+				txId, err := p.Adrestia.Trade(trade.Conversions[1])
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				trade.Conversions[1].CreatedTime = time.Now().Unix()
+				trade.Conversions[1].Status = hestia.ExchangeOrderStatusOpen
+				trade.Conversions[1].OrderId = txId
+			} else {
+				trade.Status = hestia.ShiftV2TradeStatusCompleted
 			}
-			trade.Conversions[1].CreatedTime = time.Now().Unix()
-			trade.Conversions[1].Status = hestia.ExchangeOrderStatusOpen
-			trade.Conversions[1].OrderId = txId
 		}
 	}
 }
