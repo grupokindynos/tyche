@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/grupokindynos/adrestia-go/models"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/tokens/mrt"
@@ -62,8 +63,8 @@ func (a *AdrestiaRequests) GetAddress(coin string) (address models.AddressRespon
 func (a *AdrestiaRequests) GetPath(fromCoin string, toCoin string) (path models.PathResponse, err error) {
 	url := os.Getenv(a.AdrestiaUrl) + "path"
 	pathParams := models.PathParams{
-		FromCoin:      fromCoin,
-		ToCoin:        toCoin,
+		FromCoin: fromCoin,
+		ToCoin:   toCoin,
 	}
 	req, err := mvt.CreateMVTToken("POST", url, "tyche", os.Getenv("MASTER_PASSWORD"), pathParams, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
@@ -183,6 +184,7 @@ func (a *AdrestiaRequests) Trade(tradeParams hestia.Trade) (txId string, err err
 
 func (a *AdrestiaRequests) StockBalance(asset string) (balance models.BalanceResponse, err error) {
 	url := os.Getenv(a.AdrestiaUrl) + "stock/balance/" + asset
+	fmt.Println(url)
 	req, err := mvt.CreateMVTToken("GET", url, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return
@@ -261,7 +263,7 @@ func (a *AdrestiaRequests) DepositInfo(depositParams models.DepositParams) (depo
 	return
 }
 
-func (a *AdrestiaRequests) GetTradeStatus (tradeParams hestia.Trade) (tradeInfo hestia.ExchangeOrderInfo, err error) {
+func (a *AdrestiaRequests) GetTradeStatus(tradeParams hestia.Trade) (tradeInfo hestia.ExchangeOrderInfo, err error) {
 	url := os.Getenv(a.AdrestiaUrl) + "trade/status"
 	req, err := mvt.CreateMVTToken("POST", url, "tyche", os.Getenv("MASTER_PASSWORD"), tradeParams, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
@@ -301,7 +303,7 @@ func (a *AdrestiaRequests) GetTradeStatus (tradeParams hestia.Trade) (tradeInfo 
 	return
 }
 
-func (a *AdrestiaRequests) GetWithdrawalTxHash (withdrawParams models.WithdrawInfo) (txId string, err error) {
+func (a *AdrestiaRequests) GetWithdrawalTxHash(withdrawParams models.WithdrawInfo) (txId string, err error) {
 	url := os.Getenv(a.AdrestiaUrl) + "withdraw/hash"
 	req, err := mvt.CreateMVTToken("POST", url, "tyche", os.Getenv("MASTER_PASSWORD"), withdrawParams, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {

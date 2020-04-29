@@ -62,15 +62,18 @@ func (s *TycheControllerV2) BalanceV2(_ string, _ []byte, params models.Params) 
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("err1")
 	rate, err := s.Obol.GetCoin2CoinRates(balance.Asset, params.Coin)
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println(rate, balance.Balance)
+	fmt.Println("err2")
 	response := plutus.Balance{
 		Confirmed:   balance.Balance * rate,
 		Unconfirmed: 0,
 	}
+	fmt.Println("err3")
 	return response, nil
 }
 
@@ -101,8 +104,6 @@ func (s *TycheControllerV2) GetShiftFromMap(key string) (models.PrepareShiftInfo
 	return shift, nil
 }
 
-
-
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
 func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params) (interface{}, error) {
 	var prepareData models.PrepareShiftRequest
@@ -122,20 +123,20 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 	}
 
 	prepareShift := models.PrepareShiftInfoV2{
-		ID:         utils.RandomString(),
-		FromCoin:   prepareData.FromCoin,
-		Payment:    payment,
-		ToCoin:     prepareData.ToCoin,
-		ToAddress:  prepareData.ToAddress,
-		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
-		Timestamp:  time.Now().Unix(),
-		Path: payment.Conversions,
+		ID:        utils.RandomString(),
+		FromCoin:  prepareData.FromCoin,
+		Payment:   payment,
+		ToCoin:    prepareData.ToCoin,
+		ToAddress: prepareData.ToAddress,
+		ToAmount:  int64(amountTo.ToUnit(amount.AmountSats)),
+		Timestamp: time.Now().Unix(),
+		Path:      payment.Conversions,
 	}
 	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
 		Payment:        payment,
 		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
-		ShiftId: prepareShift.ID,
+		ShiftId:        prepareShift.ID,
 	}
 	fmt.Println(prepareResponse)
 
@@ -169,7 +170,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			ToCoin:         trade.ToCoin,
 			Symbol:         trade.Trade.Book,
 			Side:           trade.Trade.Type,
-			Exchange: 		trade.Exchange,
+			Exchange:       trade.Exchange,
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
@@ -192,7 +193,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			ToCoin:         trade.ToCoin,
 			Symbol:         trade.Trade.Book,
 			Side:           trade.Trade.Type,
-			Exchange: 		trade.Exchange,
+			Exchange:       trade.Exchange,
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
@@ -227,15 +228,14 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		InboundTrade: hestia.DirectionalTrade{
 			Conversions: inTrade,
 			Status:      hestia.ShiftV2TradeStatusInitialized,
-			Exchange: inExchange,
+			Exchange:    inExchange,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
 			Conversions: outTrade,
 			Status:      hestia.ShiftV2TradeStatusCreated,
-			Exchange: outExchange,
+			Exchange:    outExchange,
 		},
 	}
-
 
 	shiftId, err := s.Hestia.UpdateShiftV2(shift)
 	if err != nil {
@@ -247,7 +247,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	return shiftId, nil
 }
 
-func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error){
+func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error) {
 	amountHandler := amount.AmountType(prepareData.Amount)
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
 	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage/100))
@@ -314,10 +314,10 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	paymentData = models.PaymentInfoV2{
 		Address: paymentAddress,
 		Amount:  int64(inputAmount.ToUnit(amount.AmountSats)), // Amount + Fee
-		Fee: int64(fee.ToUnit(amount.AmountSats)),
-		Total: int64(inputAmount.ToUnit(amount.AmountSats)) + int64(fee.ToUnit(amount.AmountSats)),
+		Fee:     int64(fee.ToUnit(amount.AmountSats)),
+		Total:   int64(inputAmount.ToUnit(amount.AmountSats)) + int64(fee.ToUnit(amount.AmountSats)),
 		HasFee:  feeFlag,
-		Rate: int64(rateAmountHandler.ToUnit(amount.AmountSats)),
+		Rate:    int64(rateAmountHandler.ToUnit(amount.AmountSats)),
 		FiatInfo: models.ExpectedFiatAmount{
 			Amount: fromCoinToUSD,
 			Fee:    feeToUsd,
@@ -326,6 +326,7 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	}
 	return
 }
+
 // utils
 func (s *TycheControllerV2) RemoveShiftFromMap(uid string) {
 	s.mapLock.Lock()
@@ -341,7 +342,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 		Amount:  shiftData.Payment.Amount,
 		Address: shiftData.Payment.Address,
 	}
-	valid, err := VerifyTxData(body)
+	valid, err := s.VerifyTxData(body)
 	if err != nil {
 		shiftData.Status = hestia.ShiftStatusV2Error
 		shiftData.Message = "could not validate rawtx" + err.Error()
@@ -396,7 +397,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 	}
 }
 
-func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
+func (s *TycheControllerV2) VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 	coinConfig, err := coinFactory.GetCoin(data.Coin)
 	if err != nil {
 		return false, err
@@ -404,6 +405,7 @@ func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 	var isValue bool
 	var isAddress bool
 	if coinConfig.Info.Token || coinConfig.Info.Tag == "ETH" {
+		return s.Plutus.ValidateRawTx(data)
 		/*value := ValidateTxData.Amount
 		var tx *types.Transaction
 		rawtx, err := hex.DecodeString(ValidateTxData.RawTx)
@@ -433,7 +435,7 @@ func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 		if bytes.Equal(bodyAddr.Bytes(), txAddr.Bytes()) {
 			isAddress = true
 		}
-	*/
+		*/
 	} else {
 		//bitcoin-like coins
 		value := btcutil.Amount(data.Amount)

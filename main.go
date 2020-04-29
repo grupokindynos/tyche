@@ -71,7 +71,7 @@ func main() {
 	// If flag was set, change the hestia request url to be local
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
-		//adrestiaEnv = "ADRESTIA_LOCAL_URL"
+		adrestiaEnv = "ADRESTIA_LOCAL_URL"
 		plutusEnv = "PLUTUS_LOCAL_URL"
 
 		// check if testing flags were set
