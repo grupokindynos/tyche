@@ -64,6 +64,7 @@ type PrepareShiftInfoV2 struct {
 	ToAmountUSD   int64       `json:"to_amount_usd"`
 	Timestamp  int64       `json:"timestamp"`
 	Path models.PathResponse `json:"paths"`
+	StableCoinAmount float64 `json:"paths"`
 }
 
 type PaymentInfo struct {
@@ -83,6 +84,7 @@ type PaymentInfoV2 struct {
 	Conversions models.PathResponse `json:"conversions"`
 }
 
+// Amount + Fee should represent the whole shift amount.
 type ExpectedFiatAmount struct {
 	Amount float64 `json:"amount"`
 	Fee float64 `json:"fee"`
