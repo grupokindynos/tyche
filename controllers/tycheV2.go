@@ -200,12 +200,12 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		outExchange = trade.Exchange
 		outTrade = append(outTrade, newTrade)
 	}
-
-	if len(outTrade) > 0 {
-		// Sets the initial trade output amount for the ooutbound trades
-		//outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
-		log.Println("Amount Check: ", storedShift.StableCoinAmount, "or precalculated ", storedShift.ToAmountUSD)
+	withdrawAmount := 0.0 // only to be used when conversion path has no conversions (out coin is exchange's stable coin)
+	if outTrade != nil && len(outTrade) > 0 {
+		// Sets the initial trade output amount for the outbound trades
 		outTrade[0].Amount = storedShift.StableCoinAmount
+	} else {
+		withdrawAmount = storedShift.StableCoinAmount
 	}
 
 	shift := hestia.ShiftV2{
@@ -232,11 +232,13 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			Conversions: inTrade,
 			Status:      hestia.ShiftV2TradeStatusInitialized,
 			Exchange: inExchange,
+			WithdrawAmount: 0.0,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
 			Conversions: outTrade,
 			Status:      hestia.ShiftV2TradeStatusCreated,
 			Exchange: outExchange,
+			WithdrawAmount: withdrawAmount,
 		},
 		OriginalUsdRate: amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() / storedShift.StableCoinAmount,
 	}

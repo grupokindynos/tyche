@@ -156,9 +156,10 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				break
 			case hestia.ShiftV2TradeStatusCompleted:
 				if key == 1 { // if this is an outbound trade
+					var res models.WithdrawInfo
 					if trade.Conversions != nil {
 						lastPos := len(trade.Conversions) - 1
-						res, err := p.Adrestia.Withdraw(models.WithdrawParams{
+						res, err = p.Adrestia.Withdraw(models.WithdrawParams{
 							Address: shift.ToAddress,
 							Asset:   shift.ToCoin,
 							Amount:  trade.Conversions[lastPos].ReceivedAmount,
@@ -167,13 +168,21 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 							log.Println(err)
 							continue
 						}
-						trade.Status = hestia.ShiftV2TradeStatusWithdrawn
-						shift.Status = hestia.ShiftStatusV2SentToUser
-						shift.PaymentProof = res.TxId
-						shift.ProofTimestamp = time.Now().Unix()
 					} else {
-						//
+						res, err = p.Adrestia.Withdraw(models.WithdrawParams{
+							Address: shift.ToAddress,
+							Asset:   shift.ToCoin,
+							Amount:  trade.WithdrawAmount,
+						})
+						if err != nil {
+							log.Println(err)
+							continue
+						}
 					}
+					trade.Status = hestia.ShiftV2TradeStatusWithdrawn
+					shift.Status = hestia.ShiftStatusV2SentToUser
+					shift.PaymentProof = res.TxId
+					shift.ProofTimestamp = time.Now().Unix()
 				}
 				break
 			case hestia.ShiftV2TradeStatusWithdrawn:
