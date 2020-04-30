@@ -296,6 +296,7 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 
 	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
 	if err != nil {
+		log.Println("could not get sending address for coin " + prepareData.FromCoin)
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
