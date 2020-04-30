@@ -62,18 +62,15 @@ func (s *TycheControllerV2) BalanceV2(_ string, _ []byte, params models.Params) 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("err1")
 	rate, err := s.Obol.GetCoin2CoinRates(balance.Asset, params.Coin)
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println(rate, balance.Balance)
-	fmt.Println("err2")
 	response := plutus.Balance{
 		Confirmed:   balance.Balance * rate,
 		Unconfirmed: 0,
 	}
-	fmt.Println("err3")
 	return response, nil
 }
 
@@ -135,14 +132,6 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		Timestamp:  time.Now().Unix(),
 		Path: payment.Conversions,
 		StableCoinAmount: payment.FiatInfo.Amount,
-		ID:        utils.RandomString(),
-		FromCoin:  prepareData.FromCoin,
-		Payment:   payment,
-		ToCoin:    prepareData.ToCoin,
-		ToAddress: prepareData.ToAddress,
-		ToAmount:  int64(amountTo.ToUnit(amount.AmountSats)),
-		Timestamp: time.Now().Unix(),
-		Path:      payment.Conversions,
 	}
 	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
@@ -212,12 +201,12 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		outExchange = trade.Exchange
 		outTrade = append(outTrade, newTrade)
 	}
-
-	if len(outTrade) > 0 {
-		// Sets the initial trade output amount for the ooutbound trades
-		//outTrade[0].Amount = amount.AmountType(storedShift.Payment.Amount).ToNormalUnit()
-		log.Println("Amount Check: ", storedShift.StableCoinAmount, "or precalculated ", storedShift.ToAmountUSD)
+	withdrawAmount := 0.0 // only to be used when conversion path has no conversions (out coin is exchange's stable coin)
+	if outTrade != nil && len(outTrade) > 0 {
+		// Sets the initial trade output amount for the outbound trades
 		outTrade[0].Amount = storedShift.StableCoinAmount
+	} else {
+		withdrawAmount = storedShift.StableCoinAmount
 	}
 
 	shift := hestia.ShiftV2{
@@ -243,12 +232,14 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		InboundTrade: hestia.DirectionalTrade{
 			Conversions: inTrade,
 			Status:      hestia.ShiftV2TradeStatusInitialized,
-			Exchange:    inExchange,
+			Exchange: inExchange,
+			WithdrawAmount: 0.0,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
 			Conversions: outTrade,
 			Status:      hestia.ShiftV2TradeStatusCreated,
-			Exchange:    outExchange,
+			Exchange: outExchange,
+			WithdrawAmount: withdrawAmount,
 		},
 		OriginalUsdRate: amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() / storedShift.StableCoinAmount,
 	}
@@ -260,7 +251,6 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	}
 	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX)
 	s.RemoveShiftFromMap(shiftPayment.ShiftId)
-	fmt.Println("fIN")
 	return shiftId, nil
 }
 
@@ -309,6 +299,7 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 
 	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
 	if err != nil {
+		log.Println("could not get sending address for coin " + prepareData.FromCoin)
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
@@ -452,7 +443,7 @@ func (s *TycheControllerV2) VerifyTxData(data plutus.ValidateRawTxReq) (bool, er
 		if bytes.Equal(bodyAddr.Bytes(), txAddr.Bytes()) {
 			isAddress = true
 		}
-		*/
+	*/
 	} else {
 		//bitcoin-like coins
 		value := btcutil.Amount(data.Amount)
