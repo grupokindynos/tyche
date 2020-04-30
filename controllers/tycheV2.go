@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
+	"time"
+
 	"github.com/eabz/btcutil"
 	"github.com/eabz/btcutil/txscript"
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
-	"log"
-	"sync"
-	"time"
 
 	"github.com/grupokindynos/common/blockbook"
 	"github.com/olympus-protocol/ogen/utils/amount"
@@ -47,7 +48,7 @@ func (s *TycheControllerV2) StatusV2(uid string, _ []byte, _ models.Params) (int
 		return true, nil
 	}
 	// if uid == "gwY3fy79LZMtUbSNBDoom7llGfh2" || uid == "oXuH5LwghkQG2JPYEYt1jJ08WU72" || uid == "dCtcq9M4JGMo5TraWv2GhkYclHR2" || uid == "WUNEUCLsoeRsXbtVOythROXqXk93" || uid == "m6hadvwAb4Z7IaOZAd1MDPSUVtk1" || uid == "QqDLwEfxKKZMFr2jMSwu1Mfh2I53" || uid == "aB0bQYzk5LhADlDGoeE80bEzSaw1" || uid == "HMOXcoZJxfMKFca9IukZIaqI2Z02" || uid == "Vcjnoyoog2RmzJpqk7Afef5W0ds1" || uid == "yz70K4OwehRgjVGSeUfN6AcM1yR2" || uid == "DAcEJJ00VnPQiThF0IoYW6su9LU2" || uid == "yEF8YP4Ou9aCEqSPQPqDslviGfT2"{
-	if uid == "gwY3fy79LZMtUbSNBDoom7llGfh2" || uid == "HMOXcoZJxfMKFca9IukZIaqI2Z02" || uid == "yEF8YP4Ou9aCEqSPQPqDslviGfT2" || uid == "dCtcq9M4JGMo5TraWv2GhkYclHR2" || uid == "aB0bQYzk5LhADlDGoeE80bEzSaw1" || uid == "berrueta.enrique@gmail.com" {
+	if uid == "gwY3fy79LZMtUbSNBDoom7llGfh2" || uid == "HMOXcoZJxfMKFca9IukZIaqI2Z02" || uid == "yEF8YP4Ou9aCEqSPQPqDslviGfT2" || uid == "dCtcq9M4JGMo5TraWv2GhkYclHR2" || uid == "aB0bQYzk5LhADlDGoeE80bEzSaw1" || uid == "QqDLwEfxKKZMFr2jMSwu1Mfh2I53" || uid == "ZUucrGooOOXyGUEj6AGaH8epoBn2" {
 		return true, nil
 	}
 	status, err := s.Hestia.GetShiftStatus()
@@ -98,8 +99,6 @@ func (s *TycheControllerV2) GetShiftFromMap(key string) (models.PrepareShiftInfo
 	return shift, nil
 }
 
-
-
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
 func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params) (interface{}, error) {
 	var prepareData models.PrepareShiftRequest
@@ -122,21 +121,21 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		return nil, cerrors.ErrorShiftMinimumAmount
 	}
 	prepareShift := models.PrepareShiftInfoV2{
-		ID:         utils.RandomString(),
-		FromCoin:   prepareData.FromCoin,
-		Payment:    payment,
-		ToCoin:     prepareData.ToCoin,
-		ToAddress:  prepareData.ToAddress,
-		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
-		Timestamp:  time.Now().Unix(),
-		Path: payment.Conversions,
+		ID:               utils.RandomString(),
+		FromCoin:         prepareData.FromCoin,
+		Payment:          payment,
+		ToCoin:           prepareData.ToCoin,
+		ToAddress:        prepareData.ToAddress,
+		ToAmount:         int64(amountTo.ToUnit(amount.AmountSats)),
+		Timestamp:        time.Now().Unix(),
+		Path:             payment.Conversions,
 		StableCoinAmount: payment.FiatInfo.Amount,
 	}
 	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
 		Payment:        payment,
 		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
-		ShiftId: prepareShift.ID,
+		ShiftId:        prepareShift.ID,
 	}
 	fmt.Println(prepareResponse)
 
@@ -170,7 +169,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			ToCoin:         trade.ToCoin,
 			Symbol:         trade.Trade.Book,
 			Side:           trade.Trade.Type,
-			Exchange: 		trade.Exchange,
+			Exchange:       trade.Exchange,
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
@@ -193,7 +192,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			ToCoin:         trade.ToCoin,
 			Symbol:         trade.Trade.Book,
 			Side:           trade.Trade.Type,
-			Exchange: 		trade.Exchange,
+			Exchange:       trade.Exchange,
 			CreatedTime:    0,
 			FulfilledTime:  0,
 		}
@@ -229,20 +228,19 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		PaymentProof:   "",
 		ProofTimestamp: 0,
 		InboundTrade: hestia.DirectionalTrade{
-			Conversions: inTrade,
-			Status:      hestia.ShiftV2TradeStatusInitialized,
-			Exchange: inExchange,
+			Conversions:    inTrade,
+			Status:         hestia.ShiftV2TradeStatusInitialized,
+			Exchange:       inExchange,
 			WithdrawAmount: 0.0,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
-			Conversions: outTrade,
-			Status:      hestia.ShiftV2TradeStatusCreated,
-			Exchange: outExchange,
+			Conversions:    outTrade,
+			Status:         hestia.ShiftV2TradeStatusCreated,
+			Exchange:       outExchange,
 			WithdrawAmount: withdrawAmount,
 		},
 		OriginalUsdRate: amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() / storedShift.StableCoinAmount,
 	}
-
 
 	shiftId, err := s.Hestia.UpdateShiftV2(shift)
 	if err != nil {
@@ -253,10 +251,10 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	return shiftId, nil
 }
 
-func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error){
+func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error) {
 	amountHandler := amount.AmountType(prepareData.Amount)
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
-	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage / 100.0))
+	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage/100.0))
 	fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
 
 	// Retrieve conversion rates
@@ -321,10 +319,10 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	paymentData = models.PaymentInfoV2{
 		Address: paymentAddress,
 		Amount:  int64(inputAmount.ToUnit(amount.AmountSats)), // Amount + Fee
-		Fee: int64(fee.ToUnit(amount.AmountSats)),
-		Total: int64(inputAmount.ToUnit(amount.AmountSats)) + int64(fee.ToUnit(amount.AmountSats)),
+		Fee:     int64(fee.ToUnit(amount.AmountSats)),
+		Total:   int64(inputAmount.ToUnit(amount.AmountSats)) + int64(fee.ToUnit(amount.AmountSats)),
 		HasFee:  feeFlag,
-		Rate: int64(rateAmountHandler.ToUnit(amount.AmountSats)),
+		Rate:    int64(rateAmountHandler.ToUnit(amount.AmountSats)),
 		FiatInfo: models.ExpectedFiatAmount{
 			Amount: fromCoinToUSD,
 			Fee:    feeToUsd,
@@ -333,6 +331,7 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	}
 	return
 }
+
 // utils
 func (s *TycheControllerV2) RemoveShiftFromMap(uid string) {
 	s.mapLock.Lock()
@@ -440,7 +439,7 @@ func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 		if bytes.Equal(bodyAddr.Bytes(), txAddr.Bytes()) {
 			isAddress = true
 		}
-	*/
+		*/
 	} else {
 		//bitcoin-like coins
 		value := btcutil.Amount(data.Amount)
