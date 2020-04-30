@@ -123,14 +123,14 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 		return nil, cerrors.ErrorShiftMinimumAmount
 	}
 	prepareShift := models.PrepareShiftInfoV2{
-		ID:         utils.RandomString(),
-		FromCoin:   prepareData.FromCoin,
-		Payment:    payment,
-		ToCoin:     prepareData.ToCoin,
-		ToAddress:  prepareData.ToAddress,
-		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
-		Timestamp:  time.Now().Unix(),
-		Path: payment.Conversions,
+		ID:               utils.RandomString(),
+		FromCoin:         prepareData.FromCoin,
+		Payment:          payment,
+		ToCoin:           prepareData.ToCoin,
+		ToAddress:        prepareData.ToAddress,
+		ToAmount:         int64(amountTo.ToUnit(amount.AmountSats)),
+		Timestamp:        time.Now().Unix(),
+		Path:             payment.Conversions,
 		StableCoinAmount: payment.FiatInfo.Amount,
 	}
 	fmt.Println(prepareShift)
@@ -230,20 +230,19 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 		PaymentProof:   "",
 		ProofTimestamp: 0,
 		InboundTrade: hestia.DirectionalTrade{
-			Conversions: inTrade,
-			Status:      hestia.ShiftV2TradeStatusInitialized,
-			Exchange: inExchange,
+			Conversions:    inTrade,
+			Status:         hestia.ShiftV2TradeStatusInitialized,
+			Exchange:       inExchange,
 			WithdrawAmount: 0.0,
 		},
 		OutboundTrade: hestia.DirectionalTrade{
-			Conversions: outTrade,
-			Status:      hestia.ShiftV2TradeStatusCreated,
-			Exchange: outExchange,
+			Conversions:    outTrade,
+			Status:         hestia.ShiftV2TradeStatusCreated,
+			Exchange:       outExchange,
 			WithdrawAmount: withdrawAmount,
 		},
 		OriginalUsdRate: amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() / storedShift.StableCoinAmount,
 	}
-
 
 	shiftId, err := s.Hestia.UpdateShiftV2(shift)
 	if err != nil {
@@ -257,7 +256,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error) {
 	amountHandler := amount.AmountType(prepareData.Amount)
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
-	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage / 100.0))
+	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage/100.0))
 	fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
 
 	// Retrieve conversion rates
@@ -414,36 +413,7 @@ func (s *TycheControllerV2) VerifyTxData(data plutus.ValidateRawTxReq) (bool, er
 	var isAddress bool
 	if coinConfig.Info.Token || coinConfig.Info.Tag == "ETH" {
 		return s.Plutus.ValidateRawTx(data)
-		/*value := ValidateTxData.Amount
-		var tx *types.Transaction
-		rawtx, err := hex.DecodeString(ValidateTxData.RawTx)
-		if err != nil {
-			return nil, err
-		}
-		err = rlp.DecodeBytes(rawtx, &tx)
-		if err != nil {
-			return nil, err
-		}
-		//compare amount from the tx and the input body
-		var txBodyAmount int64
-		var txAddr common.Address
-		if coinConfig.Info.Token {
-			address, amount := DecodeERC20Data([]byte(hex.EncodeToString(tx.Data())))
-			txAddr = common.HexToAddress(string(address))
-			txBodyAmount = amount.Int64()
-		} else {
-			txBodyAmount = tx.Value().Int64()
-			txAddr = *tx.To()
-		}
-		if txBodyAmount == value {
-			isValue = true
-		}
-		bodyAddr := common.HexToAddress(ValidateTxData.Address)
-		//compare the address from the tx and the input body
-		if bytes.Equal(bodyAddr.Bytes(), txAddr.Bytes()) {
-			isAddress = true
-		}
-	*/
+
 	} else {
 		//bitcoin-like coins
 		value := btcutil.Amount(data.Amount)
