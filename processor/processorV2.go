@@ -100,11 +100,18 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 			s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCreated
 			_, err = p.Hestia.UpdateShiftV2(s)
 			if err != nil {
-				fmt.Println("Unable to update shift confirmations: " + err.Error())
+				fmt.Println(s.ID, " Unable to update shift confirmations: " + err.Error())
 				continue
+			}
+			if s.InboundTrade.Conversions == nil {
+				s.InboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
+			}
+			if s.OutboundTrade.Conversions == nil {
+				s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
 			}
 			continue
 		}
+
 
 		s.Status = hestia.ShiftStatusV2ProcessingOrders
 		_, err = p.Hestia.UpdateShiftV2(s)
@@ -149,15 +156,28 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				break
 			case hestia.ShiftV2TradeStatusCompleted:
 				if key == 1 { // if this is an outbound trade
-					lastPos := len(trade.Conversions) - 1
-					res, err := p.Adrestia.Withdraw(models.WithdrawParams{
-						Address: shift.ToAddress,
-						Asset:   shift.ToCoin,
-						Amount:  trade.Conversions[lastPos].ReceivedAmount,
-					})
-					if err != nil {
-						log.Println(err)
-						continue
+					var res models.WithdrawInfo
+					if trade.Conversions != nil {
+						lastPos := len(trade.Conversions) - 1
+						res, err = p.Adrestia.Withdraw(models.WithdrawParams{
+							Address: shift.ToAddress,
+							Asset:   shift.ToCoin,
+							Amount:  trade.Conversions[lastPos].ReceivedAmount,
+						})
+						if err != nil {
+							log.Println(err)
+							continue
+						}
+					} else {
+						res, err = p.Adrestia.Withdraw(models.WithdrawParams{
+							Address: shift.ToAddress,
+							Asset:   shift.ToCoin,
+							Amount:  trade.WithdrawAmount,
+						})
+						if err != nil {
+							log.Println(err)
+							continue
+						}
 					}
 					trade.Status = hestia.ShiftV2TradeStatusWithdrawn
 					shift.Status = hestia.ShiftStatusV2SentToUser
