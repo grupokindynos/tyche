@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/grupokindynos/adrestia-go/models"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/tokens/mrt"
@@ -184,7 +183,6 @@ func (a *AdrestiaRequests) Trade(tradeParams hestia.Trade) (txId string, err err
 
 func (a *AdrestiaRequests) StockBalance(asset string) (balance models.BalanceResponse, err error) {
 	url := os.Getenv(a.AdrestiaUrl) + "stock/balance/" + asset
-	fmt.Println(url)
 	req, err := mvt.CreateMVTToken("GET", url, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return
