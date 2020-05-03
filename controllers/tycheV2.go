@@ -11,6 +11,7 @@ import (
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -102,7 +103,7 @@ func (s *TycheControllerV2) GetShiftFromMap(key string) (models.PrepareShiftInfo
 }
 
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
-func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params) (interface{}, error) {
+func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
 	var prepareData models.PrepareShiftRequest
 	err := json.Unmarshal(payload, &prepareData)
 	if err != nil {
@@ -122,6 +123,27 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 	if payment.FiatInfo.Amount < 15.0 {
 		return nil, cerrors.ErrorShiftMinimumAmount
 	}
+	// i
+	timestamp := strconv.FormatInt(time.Now().Unix()-24*3600, 10)
+	shifts, err := s.Hestia.GetShiftsByTimestampV2(uid, timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	totalAmountFiat := payment.FiatInfo.Amount
+
+	for _, shift := range shifts {
+		if shift.Status != hestia.ShiftStatusV2Error && shift.Status != hestia.ShiftStatusV2Refunded { // Excludes errored Vouchers from Spent Amount
+			fiatAmount := shift.InboundTrade.Conversions[0].Amount * shift.OriginalUsdRate
+			totalAmountFiat += fiatAmount
+		}
+	}
+
+	if totalAmountFiat > 200.0 {
+		return nil, cerrors.ErrorShiftDailyLimit
+	}
+	// e
+
 	prepareShift := models.PrepareShiftInfoV2{
 		ID:               utils.RandomString(),
 		FromCoin:         prepareData.FromCoin,
