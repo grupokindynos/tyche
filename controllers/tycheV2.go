@@ -123,26 +123,24 @@ func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Param
 	if payment.FiatInfo.Amount < 15.0 {
 		return nil, cerrors.ErrorShiftMinimumAmount
 	}
-	// i
+
 	timestamp := strconv.FormatInt(time.Now().Unix()-24*3600, 10)
 	shifts, err := s.Hestia.GetShiftsByTimestampV2(uid, timestamp)
 	if err != nil {
 		return nil, err
 	}
 
-	totalAmountFiat := payment.FiatInfo.Amount
+	totalAmountFiat := payment.FiatInfo.Amount + payment.FiatInfo.Fee
 
 	for _, shift := range shifts {
-		if shift.Status != hestia.ShiftStatusV2Error && shift.Status != hestia.ShiftStatusV2Refunded { // Excludes errored Vouchers from Spent Amount
-			fiatAmount := shift.InboundTrade.Conversions[0].Amount * shift.OriginalUsdRate
+		if shift.Status != hestia.ShiftStatusV2Error && shift.Status != hestia.ShiftStatusV2Refunded {
+			fiatAmount := shift.InboundTrade.Conversions[0].Amount / shift.OriginalUsdRate
 			totalAmountFiat += fiatAmount
 		}
 	}
-
 	if totalAmountFiat > 200.0 {
 		return nil, cerrors.ErrorShiftDailyLimit
 	}
-	// e
 
 	prepareShift := models.PrepareShiftInfoV2{
 		ID:               utils.RandomString(),
