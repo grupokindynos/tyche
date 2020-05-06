@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"sync"
-	"time"
 
 	"github.com/eabz/btcutil"
 	"github.com/eabz/btcutil/txscript"
