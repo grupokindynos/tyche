@@ -420,6 +420,7 @@ func (p *TycheProcessorV2) handleInboundDeposit(shift *hestia.ShiftV2) {
 		Address: shift.Payment.Address,
 	})
 	if err != nil {
+		log.Println(err)
 		return
 	}
 	if depositInfo.DepositInfo.Status == hestia.ExchangeOrderStatusCompleted {
