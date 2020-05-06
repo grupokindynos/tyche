@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"sync"
-	"time"
 
 	"github.com/eabz/btcutil"
 	"github.com/eabz/btcutil/txscript"
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
+	"log"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/grupokindynos/common/blockbook"
 	"github.com/olympus-protocol/ogen/utils/amount"
@@ -79,6 +80,9 @@ func (s *TycheControllerV2) broadCastTx(coinConfig *coins.Coin, rawTx string) (s
 	if !s.TxsAvailable {
 		return "not published due no-txs flag", nil, ""
 	}
+	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
+		coinConfig, _ = coinFactory.GetCoin("ETH")
+	}
 	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
 	return blockbookWrapper.SendTxWithMessage(rawTx)
 }
@@ -100,7 +104,7 @@ func (s *TycheControllerV2) GetShiftFromMap(key string) (models.PrepareShiftInfo
 }
 
 // Tyche v2 API. Most important change is the use of ShiftId instead of UID as Mempool Map Key.
-func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params) (interface{}, error) {
+func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Params) (interface{}, error) {
 	var prepareData models.PrepareShiftRequest
 	err := json.Unmarshal(payload, &prepareData)
 	if err != nil {
@@ -120,6 +124,25 @@ func (s *TycheControllerV2) PrepareV2(_ string, payload []byte, _ models.Params)
 	if payment.FiatInfo.Amount < 15.0 {
 		return nil, cerrors.ErrorShiftMinimumAmount
 	}
+
+	timestamp := strconv.FormatInt(time.Now().Unix()-24*3600, 10)
+	shifts, err := s.Hestia.GetShiftsByTimestampV2(uid, timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	totalAmountFiat := payment.FiatInfo.Amount + payment.FiatInfo.Fee
+
+	for _, shift := range shifts {
+		if shift.Status != hestia.ShiftStatusV2Error && shift.Status != hestia.ShiftStatusV2Refunded {
+			fiatAmount := shift.InboundTrade.Conversions[0].Amount / shift.OriginalUsdRate
+			totalAmountFiat += fiatAmount
+		}
+	}
+	if totalAmountFiat > 200.0 {
+		return nil, cerrors.ErrorShiftDailyLimit
+	}
+
 	prepareShift := models.PrepareShiftInfoV2{
 		ID:               utils.RandomString(),
 		FromCoin:         prepareData.FromCoin,
@@ -347,7 +370,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 		Amount:  shiftData.Payment.Amount,
 		Address: shiftData.Payment.Address,
 	}
-	valid, err := VerifyTxData(body)
+	valid, err := s.VerifyTxData(body)
 	if err != nil {
 		shiftData.Status = hestia.ShiftStatusV2Error
 		shiftData.Message = "could not validate rawtx" + err.Error()
@@ -402,7 +425,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 	}
 }
 
-func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
+func (s *TycheControllerV2) VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 	coinConfig, err := coinFactory.GetCoin(data.Coin)
 	if err != nil {
 		return false, err
@@ -410,36 +433,7 @@ func VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 	var isValue bool
 	var isAddress bool
 	if coinConfig.Info.Token || coinConfig.Info.Tag == "ETH" {
-		/*value := ValidateTxData.Amount
-		var tx *types.Transaction
-		rawtx, err := hex.DecodeString(ValidateTxData.RawTx)
-		if err != nil {
-			return nil, err
-		}
-		err = rlp.DecodeBytes(rawtx, &tx)
-		if err != nil {
-			return nil, err
-		}
-		//compare amount from the tx and the input body
-		var txBodyAmount int64
-		var txAddr common.Address
-		if coinConfig.Info.Token {
-			address, amount := DecodeERC20Data([]byte(hex.EncodeToString(tx.Data())))
-			txAddr = common.HexToAddress(string(address))
-			txBodyAmount = amount.Int64()
-		} else {
-			txBodyAmount = tx.Value().Int64()
-			txAddr = *tx.To()
-		}
-		if txBodyAmount == value {
-			isValue = true
-		}
-		bodyAddr := common.HexToAddress(ValidateTxData.Address)
-		//compare the address from the tx and the input body
-		if bytes.Equal(bodyAddr.Bytes(), txAddr.Bytes()) {
-			isAddress = true
-		}
-		*/
+		return s.Plutus.ValidateRawTx(data)
 	} else {
 		//bitcoin-like coins
 		value := btcutil.Amount(data.Amount)

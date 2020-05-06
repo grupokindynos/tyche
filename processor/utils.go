@@ -3,9 +3,9 @@ package processor
 import (
 	"errors"
 	"github.com/grupokindynos/common/blockbook"
+	cf "github.com/grupokindynos/common/coin-factory"
 	coinFactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/hestia"
-	cf "github.com/grupokindynos/common/coin-factory"
 	"strconv"
 )
 
@@ -33,6 +33,9 @@ func checkTxIdWithFee(payment *hestia.PaymentWithFee) error {
 
 func getMissingTxId(coin string, address string, amount int64) (string, error) {
 	coinConfig, _ := coinFactory.GetCoin(coin)
+	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
+		coinConfig, _ = coinFactory.GetCoin("ETH")
+	}
 	blockBook := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
 	return blockBook.FindDepositTxId(address, amount)
 }
@@ -42,6 +45,9 @@ func getUserReceivedAmount(currency string, addr string, txId string) (float64, 
 	coin, err := cf.GetCoin(currency)
 	if err != nil {
 		return 0.0, errors.New("Unable to get coin")
+	}
+	if coin.Info.Token && coin.Info.Tag != "ETH" {
+		coin, _ = cf.GetCoin("ETH")
 	}
 	blockExplorer.Url = "https://" + coin.BlockchainInfo.ExternalSource
 	res, err := blockExplorer.GetTx(txId)
