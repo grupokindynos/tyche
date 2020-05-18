@@ -150,10 +150,17 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 			case hestia.ShiftV2TradeStatusCompleted:
 				if key == 1 { // if this is an outbound trade
 					lastPos := len(trade.Conversions) - 1
+					withdrawAmount := 0.0
+					toAmount, _ := amount.NewAmount(float64(shift.ToAmount))
+					if trade.Conversions[lastPos].ReceivedAmount > toAmount.ToNormalUnit() {
+						withdrawAmount = toAmount.ToNormalUnit()
+					} else {
+						withdrawAmount = trade.Conversions[lastPos].ReceivedAmount
+					}
 					res, err := p.Adrestia.Withdraw(models.WithdrawParams{
 						Address: shift.ToAddress,
 						Asset:   shift.ToCoin,
-						Amount:  trade.Conversions[lastPos].ReceivedAmount,
+						Amount:  withdrawAmount,
 					})
 					if err != nil {
 						log.Println(err)
