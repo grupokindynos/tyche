@@ -299,6 +299,9 @@ func (p *Processor) getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error)
 }
 
 func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
+	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
+		coinConfig, _ = coinfactory.GetCoin("ETH")
+	}
 	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
 	txData, err := blockbookWrapper.GetTx(txid)
 	if err != nil {

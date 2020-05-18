@@ -78,6 +78,14 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 			teleBot.SendError("Unable to get payment coin configuration: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
+		if paymentCoinConfig.Info.Token && paymentCoinConfig.Info.Tag != "ETH" {
+			ethConfig, err := coinFactory.GetCoin("ETH")
+			if err != nil {
+				s.Message = "could not get token data"
+				continue
+			}
+			paymentCoinConfig.BlockchainInfo = ethConfig.BlockchainInfo
+		}
 
 		//Check for missing txid
 		err = checkTxIdWithFee(&s.Payment)
@@ -100,11 +108,18 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 			s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCreated
 			_, err = p.Hestia.UpdateShiftV2(s)
 			if err != nil {
-				fmt.Println("Unable to update shift confirmations: " + err.Error())
+				fmt.Println(s.ID, " Unable to update shift confirmations: " + err.Error())
 				continue
+			}
+			if s.InboundTrade.Conversions == nil {
+				s.InboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
+			}
+			if s.OutboundTrade.Conversions == nil {
+				s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
 			}
 			continue
 		}
+
 
 		s.Status = hestia.ShiftStatusV2ProcessingOrders
 		_, err = p.Hestia.UpdateShiftV2(s)
@@ -381,6 +396,9 @@ func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.Shif
 }
 
 func (p *TycheProcessorV2) getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
+	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
+		coinConfig, _ = coinFactory.GetCoin("ETH")
+	}
 	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
 	txData, err := blockbookWrapper.GetTx(txid)
 	if err != nil {
