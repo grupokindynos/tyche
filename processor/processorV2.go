@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -166,9 +167,9 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				if key == 1 { // if this is an outbound trade
 					lastPos := len(trade.Conversions) - 1
 					withdrawAmount := 0.0
-					toAmount, _ := amount.NewAmount(float64(shift.ToAmount))
-					if trade.Conversions[lastPos].ReceivedAmount > toAmount.ToNormalUnit() {
-						withdrawAmount = toAmount.ToNormalUnit()
+					toAmount, _ := decimal.NewFromInt(shift.ToAmount).Mul(decimal.NewFromFloat(1e-8)).Float64()
+					if trade.Conversions[lastPos].ReceivedAmount > toAmount {
+						withdrawAmount = toAmount
 					} else {
 						withdrawAmount = trade.Conversions[lastPos].ReceivedAmount
 					}

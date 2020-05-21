@@ -16,7 +16,7 @@ require (
 	github.com/martinboehm/btcd v0.0.0-20200313230603-83af86142d93 // indirect
 	github.com/olympus-protocol/ogen v0.0.0-20200306215331-cfdea2a514e1
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
+	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea
 	golang.org/x/crypto v0.0.0-20200420201142-3c4aac89819a // indirect
 	golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f // indirect
 	gopkg.in/square/go-jose.v2 v2.5.0 // indirect
