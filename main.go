@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/grupokindynos/common/jwt"
@@ -39,7 +38,6 @@ type CurrentTime struct {
 }
 
 var (
-	currTime           CurrentTime
 	prepareShiftsMap   = make(map[string]models.PrepareShiftInfo)
 	prepareShiftsMapV2 = make(map[string]models.PrepareShiftInfoV2)
 )
@@ -91,15 +89,8 @@ func main() {
 
 	devMode = *dev
 
-	currTime = CurrentTime{
-		Hour:   time.Now().Hour(),
-		Day:    time.Now().Day(),
-		Minute: time.Now().Minute(),
-		Second: time.Now().Second(),
-	}
-
 	if !*stopProcessor {
-		go timer()
+		go runProcessorV2()
 	}
 
 	App := GetApp()
@@ -236,31 +227,8 @@ func ValidateOpenRequest(c *gin.Context, method func(uid string, payload []byte,
 	return
 }
 
-func timer() {
-	for {
-		time.Sleep(1 * time.Second)
-		currTime = CurrentTime{
-			Hour:   time.Now().Hour(),
-			Day:    time.Now().Day(),
-			Minute: time.Now().Minute(),
-			Second: time.Now().Second(),
-		}
-		if currTime.Second == 0 {
-			var wg sync.WaitGroup
-			wg.Add(1)
-			runCrons(&wg)
-			wg.Wait()
-		}
-	}
-}
-
-func runCrons(mainWg *sync.WaitGroup) {
-	defer func() {
-		mainWg.Done()
-	}()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	proc := processor.TycheProcessorV2{
+func runProcessorV2() {
+	proc2 := processor.TycheProcessorV2{
 		Hestia:          &services.HestiaRequests{HestiaURL: hestiaEnv},
 		Plutus:          &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		HestiaURL:       hestiaEnv,
@@ -269,21 +237,10 @@ func runCrons(mainWg *sync.WaitGroup) {
 		Adrestia:        &services.AdrestiaRequests{AdrestiaUrl: adrestiaEnv},
 	}
 
-	go runCronMinutes(1, proc.Start, &wg) // 1 minute
-	wg.Wait()
-}
-
-func runCronMinutes(schedule int, function func(), wg *sync.WaitGroup) {
-	go func() {
-		defer func() {
-			wg.Done()
-		}()
-		remainder := currTime.Minute % schedule
-		if remainder == 0 {
-			function()
-		}
-		return
-	}()
+	ticker := time.NewTicker(1 * time.Minute)
+	for range ticker.C {
+		proc2.Start()
+	}
 }
 
 func checkAndRemoveShifts(ctrl *controllers.TycheController) {
