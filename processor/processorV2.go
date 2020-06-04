@@ -24,7 +24,6 @@ import (
 	"github.com/grupokindynos/common/tokens/mvt"
 	"github.com/grupokindynos/tyche/services"
 	msgBot "github.com/grupokindynos/tyche/telegram"
-	"github.com/olympus-protocol/ogen/utils/amount"
 )
 
 type TycheProcessorV2 struct {
@@ -109,7 +108,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 			s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCreated
 			_, err = p.Hestia.UpdateShiftV2(s)
 			if err != nil {
-				fmt.Println(s.ID, " Unable to update shift confirmations: " + err.Error())
+				fmt.Println(s.ID, " Unable to update shift confirmations: "+err.Error())
 				continue
 			}
 			if s.InboundTrade.Conversions == nil {
@@ -120,7 +119,6 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 			}
 			continue
 		}
-
 
 		s.Status = hestia.ShiftStatusV2ProcessingOrders
 		_, err = p.Hestia.UpdateShiftV2(s)
@@ -201,7 +199,7 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				if txId != "" {
 					shift.PaymentProof = txId
 					trade.Status = hestia.ShiftV2TradeStatusUserDeposit
-				} else if (time.Now().Unix() - shift.ProofTimestamp) > 10 * 60 {
+				} else if (time.Now().Unix() - shift.ProofTimestamp) > 10*60 {
 					trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
 				}
 				break
@@ -238,11 +236,18 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 	}
 	for _, shift := range shifts {
 		// TODO Handle refunds in a coin's coin
+		amountDec := decimal.NewFromInt(shift.Payment.Amount).Div(decimal.NewFromInt(1e8))
+		floatAmount, err := strconv.ParseFloat(amountDec.StringFixed(8), 64)
+		if err != nil {
+			fmt.Println("Refund shifts processor finished with errors: " + err.Error())
+			teleBot.SendError("Refund shifts processor finished with errors: " + err.Error())
+			return
+		}
 		if shift.Payment.Coin == "POLIS" {
 			paymentBody := plutus.SendAddressBodyReq{
 				Address: shift.RefundAddr,
 				Coin:    "POLIS",
-				Amount:  amount.AmountType(shift.Payment.Amount).ToNormalUnit(),
+				Amount:  floatAmount,
 			}
 			_, err := p.Plutus.SubmitPayment(paymentBody)
 			if err != nil {

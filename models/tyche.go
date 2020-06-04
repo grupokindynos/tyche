@@ -34,13 +34,13 @@ type PrepareShiftResponse struct {
 	Payment        PaymentInfo `json:"payment"`
 	Fee            PaymentInfo `json:"fee"`
 	ReceivedAmount int64       `json:"received_amount"`
-	ShiftId			string `json:"shift_id"`
+	ShiftId        string      `json:"shift_id"`
 }
 
 type PrepareShiftResponseV2 struct {
 	Payment        PaymentInfoV2 `json:"payment"`
-	ReceivedAmount int64       `json:"received_amount"`
-	ShiftId			string `json:"shift_id"`
+	ReceivedAmount int64         `json:"received_amount"`
+	ShiftId        string        `json:"shift_id"`
 }
 
 type PrepareShiftInfo struct {
@@ -55,16 +55,16 @@ type PrepareShiftInfo struct {
 }
 
 type PrepareShiftInfoV2 struct {
-	ID         string      `json:"id"`
-	FromCoin   string      `json:"from_coin"`
-	Payment    PaymentInfoV2 `json:"payment"`
-	ToCoin     string      `json:"to_coin"`
-	ToAddress  string      `json:"to_address"`
-	ToAmount   int64       `json:"to_amount"`
-	ToAmountUSD   int64       `json:"to_amount_usd"`
-	Timestamp  int64       `json:"timestamp"`
-	Path models.PathResponse `json:"paths"`
-	StableCoinAmount float64 `json:"paths"`
+	ID               string              `json:"id"`
+	FromCoin         string              `json:"from_coin"`
+	Payment          PaymentInfoV2       `json:"payment"`
+	ToCoin           string              `json:"to_coin"`
+	ToAddress        string              `json:"to_address"`
+	ToAmount         int64               `json:"to_amount"`
+	ToAmountUSD      int64               `json:"to_amount_usd"`
+	Timestamp        int64               `json:"timestamp"`
+	Path             models.PathResponse `json:"paths"`
+	StableCoinAmount float64             `json:"stable_coin_amount"`
 }
 
 type PaymentInfo struct {
@@ -74,20 +74,20 @@ type PaymentInfo struct {
 }
 
 type PaymentInfoV2 struct {
-	Address models.AddressResponse `json:"address"`
-	Fee int64 `json:"fee"`
-	Amount  int64  `json:"amount"`
-	Total  int64  `json:"total"`
-	HasFee  bool   `json:"has_fee"`
-	Rate int64 `json:"rate"`
-	FiatInfo ExpectedFiatAmount `json:"fiat_info"`
-	Conversions models.PathResponse `json:"conversions"`
+	Address     models.AddressResponse `json:"address"`
+	Fee         int64                  `json:"fee"`
+	Amount      int64                  `json:"amount"`
+	Total       int64                  `json:"total"`
+	HasFee      bool                   `json:"has_fee"`
+	Rate        int64                  `json:"rate"`
+	FiatInfo    ExpectedFiatAmount     `json:"fiat_info"`
+	Conversions models.PathResponse    `json:"conversions"`
 }
 
 // Amount + Fee should represent the whole shift amount.
 type ExpectedFiatAmount struct {
 	Amount float64 `json:"amount"`
-	Fee float64 `json:"fee"`
+	Fee    float64 `json:"fee"`
 }
 
 type StoreShift struct {
@@ -98,16 +98,16 @@ type StoreShift struct {
 }
 
 type StoreShiftV11 struct {
-	RawTX      	string `json:"raw_tx"`
-	FeeTX      	string `json:"fee_tx"`
-	RefundAddr 	string `json:"refund_addr"`
-	HasFee     	bool   `json:"has_fee"`
-	ShiftId		string `json:"shift_id"`
+	RawTX      string `json:"raw_tx"`
+	FeeTX      string `json:"fee_tx"`
+	RefundAddr string `json:"refund_addr"`
+	HasFee     bool   `json:"has_fee"`
+	ShiftId    string `json:"shift_id"`
 }
 
 type StoreShiftV2 struct {
-	RawTX      	string `json:"raw_tx"`
-	RefundAddr 	string `json:"refund_addr"`
-	HasFee     	bool   `json:"has_fee"`
-	ShiftId		string `json:"shift_id"`
+	RawTX      string `json:"raw_tx"`
+	RefundAddr string `json:"refund_addr"`
+	HasFee     bool   `json:"has_fee"`
+	ShiftId    string `json:"shift_id"`
 }

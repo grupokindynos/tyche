@@ -4,6 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/grupokindynos/common/blockbook"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
@@ -13,12 +20,7 @@ import (
 	"github.com/grupokindynos/common/tokens/mvt"
 	"github.com/grupokindynos/tyche/services"
 	msgBot "github.com/grupokindynos/tyche/telegram"
-	"github.com/olympus-protocol/ogen/utils/amount"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"sync"
-	"time"
+	"github.com/shopspring/decimal"
 )
 
 type Processor struct {
@@ -88,11 +90,17 @@ func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 		return
 	}
 	for _, shift := range shifts {
-		amountHandler := amount.AmountType(shift.ToAmount)
+		amountDec := decimal.NewFromInt(shift.ToAmount).DivRound(decimal.NewFromInt(1e8), 0)
+		floatAmount, err := strconv.ParseFloat(amountDec.StringFixed(8), 64)
+		if err != nil {
+			fmt.Println("Confirmed shifts processor finished with errors: " + err.Error())
+			teleBot.SendError("Confirmed shifts processor finished with errors: " + err.Error())
+			return
+		}
 		paymentData := plutus.SendAddressBodyReq{
 			Address: shift.ToAddress,
 			Coin:    shift.ToCoin,
-			Amount:  amountHandler.ToNormalUnit(),
+			Amount:  floatAmount,
 		}
 		txid, err := p.Plutus.SubmitPayment(paymentData)
 		if err != nil {
@@ -203,12 +211,19 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 	}
 	for _, shift := range shifts {
 		if shift.Payment.Coin == "POLIS" {
+			amountDec := decimal.NewFromInt(shift.Payment.Amount).DivRound(decimal.NewFromInt(1e8), 0)
+			floatAmount, err := strconv.ParseFloat(amountDec.StringFixed(8), 64)
+			if err != nil {
+				fmt.Println("Refund shifts processor finished with errors: " + err.Error())
+				teleBot.SendError("Refund shifts processor finished with errors: " + err.Error())
+				return
+			}
 			paymentBody := plutus.SendAddressBodyReq{
 				Address: shift.RefundAddr,
 				Coin:    "POLIS",
-				Amount:  amount.AmountType(shift.Payment.Amount).ToNormalUnit(),
+				Amount:  floatAmount,
 			}
-			_, err := p.Plutus.SubmitPayment(paymentBody)
+			_, err = p.Plutus.SubmitPayment(paymentBody)
 			if err != nil {
 				fmt.Println("unable to submit refund payment")
 				teleBot.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
@@ -223,12 +238,19 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 			}
 			continue
 		}
+		amountDecFee := decimal.NewFromInt(shift.FeePayment.Amount).DivRound(decimal.NewFromInt(1e8), 0)
+		floatAmount, err := strconv.ParseFloat(amountDecFee.StringFixed(8), 64)
+		if err != nil {
+			fmt.Println("Refund shifts processor finished with errors: " + err.Error())
+			teleBot.SendError("Refund shifts processor finished with errors: " + err.Error())
+			return
+		}
 		paymentBody := plutus.SendAddressBodyReq{
 			Address: shift.RefundAddr,
 			Coin:    "POLIS",
-			Amount:  amount.AmountType(shift.FeePayment.Amount).ToNormalUnit(),
+			Amount:  floatAmount,
 		}
-		_, err := p.Plutus.SubmitPayment(paymentBody)
+		_, err = p.Plutus.SubmitPayment(paymentBody)
 		if err != nil {
 			fmt.Println("unable to submit refund payment")
 			teleBot.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
