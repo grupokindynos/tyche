@@ -7,17 +7,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/eabz/btcutil"
-	"github.com/eabz/btcutil/txscript"
-	cerrors "github.com/grupokindynos/common/errors"
-	"github.com/grupokindynos/tyche/services"
 	"log"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/eabz/btcutil"
+	"github.com/eabz/btcutil/txscript"
+	cerrors "github.com/grupokindynos/common/errors"
+	"github.com/grupokindynos/tyche/services"
+	"github.com/shopspring/decimal"
+
 	"github.com/grupokindynos/common/blockbook"
-	"github.com/olympus-protocol/ogen/utils/amount"
 
 	"github.com/grupokindynos/common/plutus"
 
@@ -149,7 +150,7 @@ func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Param
 		Payment:          payment,
 		ToCoin:           prepareData.ToCoin,
 		ToAddress:        prepareData.ToAddress,
-		ToAmount:         int64(amountTo.ToUnit(amount.AmountSats)),
+		ToAmount:         amountTo.IntPart(),
 		Timestamp:        time.Now().Unix(),
 		Path:             payment.Conversions,
 		StableCoinAmount: payment.FiatInfo.Amount,
@@ -157,7 +158,7 @@ func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Param
 	fmt.Println(prepareShift)
 	prepareResponse := models.PrepareShiftResponseV2{
 		Payment:        payment,
-		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
+		ReceivedAmount: amountTo.IntPart(),
 		ShiftId:        prepareShift.ID,
 	}
 	fmt.Println(prepareResponse)
@@ -201,8 +202,9 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	}
 	if len(inTrade) > 0 {
 		log.Println("Total satoshis ", storedShift.Payment.Total)
-		log.Println("Total satoshis ", amount.AmountType(storedShift.Payment.Total).ToNormalUnit())
-		inTrade[0].Amount = amount.AmountType(storedShift.Payment.Total).ToNormalUnit()
+		log.Println("Total satoshis ", decimal.NewFromInt(storedShift.Payment.Total).DivRound(decimal.NewFromInt(1e8), 8).String())
+		floatTrade, _ := decimal.NewFromInt(storedShift.Payment.Total).DivRound(decimal.NewFromInt(1e8), 8).Float64()
+		inTrade[0].Amount = floatTrade
 	}
 
 	var outTrade []hestia.Trade
@@ -229,6 +231,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	} else {
 		withdrawAmount = storedShift.StableCoinAmount
 	}
+	originUSDRateFloat, _ := decimal.NewFromInt(storedShift.Payment.Amount).DivRound(decimal.NewFromFloat(storedShift.StableCoinAmount), 3).Float64()
 
 	shift := hestia.ShiftV2{
 		ID:        storedShift.ID,
@@ -262,7 +265,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 			Exchange:       outExchange,
 			WithdrawAmount: withdrawAmount,
 		},
-		OriginalUsdRate: amount.AmountType(storedShift.Payment.Amount).ToNormalUnit() / storedShift.StableCoinAmount,
+		OriginalUsdRate: originUSDRateFloat,
 	}
 
 	shiftId, err := s.Hestia.UpdateShiftV2(shift)
@@ -274,11 +277,12 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	return shiftId, nil
 }
 
-func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo amount.AmountType, paymentData models.PaymentInfoV2, err error) {
-	amountHandler := amount.AmountType(prepareData.Amount)
+func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo decimal.Decimal, paymentData models.PaymentInfoV2, err error) {
+	amountHandler := decimal.NewFromInt(prepareData.Amount)
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
-	inputAmount := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * (1.0 - selectedCoin.Shift.FeePercentage/100.0))
-	fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
+	inputAmount := amountHandler.Mul(decimal.NewFromFloat(1.0).Sub(decimal.NewFromFloat(selectedCoin.Shift.FeePercentage).DivRound(decimal.NewFromInt(100), 3)))
+	fee := amountHandler.Mul(decimal.NewFromFloat(selectedCoin.Shift.FeePercentage).DivRound(decimal.NewFromInt(100), 3))
+	//fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
 
 	// Retrieve conversion rates
 	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, inputAmount.String())
@@ -287,11 +291,7 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		return
 	}
 	// Handler for exchange rate
-	rateAmountHandler, err := amount.NewAmount(rate.AveragePrice)
-	if err != nil {
-		err = cerrors.ErrorObtainingRates
-		return
-	}
+	rateAmountHandler := decimal.NewFromFloat(rate.AveragePrice)
 
 	// Retrieve Dollar conversion
 	coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
@@ -308,14 +308,10 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		}
 	}
 	// Values for estimated target conversion
-	fromCoinToUSD := inputAmount.ToNormalUnit() * coinRatesUSD
-	feeToUsd := fee.ToNormalUnit() * coinRatesUSD
+	fromCoinToUSD := inputAmount.Mul(decimal.NewFromFloat(coinRatesUSD))
+	feeToUsd := fee.Mul(decimal.NewFromFloat(coinRatesUSD))
 
-	amountTo, err = amount.NewAmount(inputAmount.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
-	if err != nil {
-		err = cerrors.ErrorFillingPaymentInformation
-		return
-	}
+	amountTo = inputAmount.Mul(rateAmountHandler)
 
 	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
 	if err != nil {
@@ -339,16 +335,19 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	if selectedCoin.Shift.FeePercentage == 0 {
 		feeFlag = false
 	}
+
+	fiatAmount, _ := fromCoinToUSD.Float64()
+	feeUsdAmount, _ := feeToUsd.Float64()
 	paymentData = models.PaymentInfoV2{
 		Address: paymentAddress,
-		Amount:  int64(inputAmount.ToUnit(amount.AmountSats)), // Amount + Fee
-		Fee:     int64(fee.ToUnit(amount.AmountSats)),
-		Total:   int64(inputAmount.ToUnit(amount.AmountSats)) + int64(fee.ToUnit(amount.AmountSats)),
+		Amount:  inputAmount.IntPart(), // Amount + Fee
+		Fee:     fee.IntPart(),
+		Total:   inputAmount.Add(fee).IntPart(),
 		HasFee:  feeFlag,
-		Rate:    int64(rateAmountHandler.ToUnit(amount.AmountSats)),
+		Rate:    rateAmountHandler.IntPart(),
 		FiatInfo: models.ExpectedFiatAmount{
-			Amount: fromCoinToUSD,
-			Fee:    feeToUsd,
+			Amount: fiatAmount,
+			Fee:    feeUsdAmount,
 		},
 		Conversions: pathInfo,
 	}

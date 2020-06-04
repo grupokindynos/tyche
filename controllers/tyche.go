@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/grupokindynos/common/blockbook"
-	"github.com/olympus-protocol/ogen/utils/amount"
+	"github.com/shopspring/decimal"
 
 	"github.com/grupokindynos/common/plutus"
 
@@ -70,7 +70,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, _ models.Params) (
 	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
 		Fee:            feePayment,
-		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
+		ReceivedAmount: amountTo.IntPart(),
 	}
 	prepareShift := models.PrepareShiftInfo{
 		ID:         utils.RandomString(),
@@ -79,7 +79,7 @@ func (s *TycheController) Prepare(uid string, payload []byte, _ models.Params) (
 		FeePayment: feePayment,
 		ToCoin:     prepareData.ToCoin,
 		ToAddress:  prepareData.ToAddress,
-		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
+		ToAmount:   amountTo.IntPart(),
 		Timestamp:  time.Now().Unix(),
 	}
 	s.AddShiftToMap(uid, prepareShift)
@@ -361,13 +361,13 @@ func (s *TycheController) PrepareV11(_ string, payload []byte, _ models.Params) 
 		FeePayment: feePayment,
 		ToCoin:     prepareData.ToCoin,
 		ToAddress:  prepareData.ToAddress,
-		ToAmount:   int64(amountTo.ToUnit(amount.AmountSats)),
+		ToAmount:   amountTo.IntPart(),
 		Timestamp:  time.Now().Unix(),
 	}
 	prepareResponse := models.PrepareShiftResponse{
 		Payment:        payment,
 		Fee:            feePayment,
-		ReceivedAmount: int64(amountTo.ToUnit(amount.AmountSats)),
+		ReceivedAmount: amountTo.IntPart(),
 		ShiftId:        prepareShift.ID,
 	}
 	s.AddShiftToMap(prepareShift.ID, prepareShift)
@@ -476,8 +476,8 @@ func GetServiceConfig(data models.PrepareShiftRequest, hestiaService services.He
 	return
 }
 
-func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, plutusService services.PlutusService) (amountTo amount.AmountType, payment models.PaymentInfo, feePayment models.PaymentInfo, err error) {
-	amountHandler := amount.AmountType(prepareData.Amount)
+func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, plutusService services.PlutusService) (amountTo decimal.Decimal, payment models.PaymentInfo, feePayment models.PaymentInfo, err error) {
+	amountHandler := decimal.NewFromInt(prepareData.Amount)
 	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, amountHandler.String())
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
@@ -507,23 +507,10 @@ func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, 
 			break
 		}
 	}
-	fromCoinToUSD := amountHandler.ToNormalUnit() * coinRatesUSD
-	fee, err := amount.NewAmount((fromCoinToUSD / polisRatesUSD) * selectedCoin.Shift.FeePercentage / float64(100))
-	if err != nil {
-		err = cerrors.ErrorObtainingRates
-		return
-	}
-	rateAmountHandler, err := amount.NewAmount(rate.AveragePrice)
-	if err != nil {
-		err = cerrors.ErrorObtainingRates
-		return
-	}
-	amountTo, err = amount.NewAmount(amountHandler.ToNormalUnit() * rateAmountHandler.ToNormalUnit())
-	if err != nil {
-		err = cerrors.ErrorFillingPaymentInformation
-		return
-	}
-
+	fromCoinToUSD := amountHandler.Mul(decimal.NewFromFloat(coinRatesUSD))
+	fee := fromCoinToUSD.DivRound(decimal.NewFromFloat(polisRatesUSD), 0).Mul(decimal.NewFromFloat(selectedCoin.Shift.FeePercentage)).DivRound(decimal.NewFromInt(100), 0)
+	rateAmountHandler := decimal.NewFromFloat(rate.AveragePrice)
+	amountTo = amountHandler.Mul(rateAmountHandler)
 	paymentAddress, err := plutusService.GetNewPaymentAddress(prepareData.FromCoin)
 	if err != nil {
 		err = cerrors.ErrorFillingPaymentInformation
@@ -544,7 +531,7 @@ func GetRates(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, 
 	if prepareData.FromCoin != "POLIS" {
 		feePayment = models.PaymentInfo{
 			Address: feeAddress,
-			Amount:  int64(fee.ToUnit(amount.AmountSats)),
+			Amount:  fee.IntPart(),
 			HasFee:  true,
 		}
 	}

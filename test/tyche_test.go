@@ -1,4 +1,5 @@
 package test
+
 /*
 import (
 	"encoding/json"
@@ -12,7 +13,6 @@ import (
 	"github.com/grupokindynos/tyche/controllers"
 	"github.com/grupokindynos/tyche/mocks"
 	"github.com/grupokindynos/tyche/models"
-	"github.com/olympus-protocol/ogen/utils/amount"
 	"testing"
 )
 
