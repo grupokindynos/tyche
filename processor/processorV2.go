@@ -236,18 +236,12 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 	}
 	for _, shift := range shifts {
 		// TODO Handle refunds in a coin's coin
-		amountDec := decimal.NewFromInt(shift.Payment.Amount).Div(decimal.NewFromInt(1e8))
-		floatAmount, err := strconv.ParseFloat(amountDec.StringFixed(8), 64)
-		if err != nil {
-			fmt.Println("Refund shifts processor finished with errors: " + err.Error())
-			teleBot.SendError("Refund shifts processor finished with errors: " + err.Error())
-			return
-		}
+		amount, _ := decimal.NewFromInt(shift.Payment.Amount).DivRound(decimal.NewFromInt(1e8), 8).Float64()
 		if shift.Payment.Coin == "POLIS" {
 			paymentBody := plutus.SendAddressBodyReq{
 				Address: shift.RefundAddr,
 				Coin:    "POLIS",
-				Amount:  floatAmount,
+				Amount:  amount,
 			}
 			_, err := p.Plutus.SubmitPayment(paymentBody)
 			if err != nil {

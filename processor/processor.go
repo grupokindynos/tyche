@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -90,17 +89,11 @@ func (p *Processor) handleConfirmedShifts(wg *sync.WaitGroup) {
 		return
 	}
 	for _, shift := range shifts {
-		amountDec := decimal.NewFromInt(shift.ToAmount).DivRound(decimal.NewFromInt(1e8), 0)
-		floatAmount, err := strconv.ParseFloat(amountDec.StringFixed(8), 64)
-		if err != nil {
-			fmt.Println("Confirmed shifts processor finished with errors: " + err.Error())
-			teleBot.SendError("Confirmed shifts processor finished with errors: " + err.Error())
-			return
-		}
+		amount, _ := decimal.NewFromInt(shift.ToAmount).DivRound(decimal.NewFromInt(1e8), 8).Float64()
 		paymentData := plutus.SendAddressBodyReq{
 			Address: shift.ToAddress,
 			Coin:    shift.ToCoin,
-			Amount:  floatAmount,
+			Amount:  amount,
 		}
 		txid, err := p.Plutus.SubmitPayment(paymentData)
 		if err != nil {
@@ -211,17 +204,11 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 	}
 	for _, shift := range shifts {
 		if shift.Payment.Coin == "POLIS" {
-			amountDec := decimal.NewFromInt(shift.Payment.Amount).DivRound(decimal.NewFromInt(1e8), 0)
-			floatAmount, err := strconv.ParseFloat(amountDec.StringFixed(8), 64)
-			if err != nil {
-				fmt.Println("Refund shifts processor finished with errors: " + err.Error())
-				teleBot.SendError("Refund shifts processor finished with errors: " + err.Error())
-				return
-			}
+			amount, _ := decimal.NewFromInt(shift.Payment.Amount).DivRound(decimal.NewFromInt(1e8), 8).Float64()
 			paymentBody := plutus.SendAddressBodyReq{
 				Address: shift.RefundAddr,
 				Coin:    "POLIS",
-				Amount:  floatAmount,
+				Amount:  amount,
 			}
 			_, err = p.Plutus.SubmitPayment(paymentBody)
 			if err != nil {
@@ -238,17 +225,11 @@ func (p *Processor) handleRefundShifts(wg *sync.WaitGroup) {
 			}
 			continue
 		}
-		amountDecFee := decimal.NewFromInt(shift.FeePayment.Amount).DivRound(decimal.NewFromInt(1e8), 0)
-		floatAmount, err := strconv.ParseFloat(amountDecFee.StringFixed(8), 64)
-		if err != nil {
-			fmt.Println("Refund shifts processor finished with errors: " + err.Error())
-			teleBot.SendError("Refund shifts processor finished with errors: " + err.Error())
-			return
-		}
+		amountFee, _ := decimal.NewFromInt(shift.FeePayment.Amount).DivRound(decimal.NewFromInt(1e8), 8).Float64()
 		paymentBody := plutus.SendAddressBodyReq{
 			Address: shift.RefundAddr,
 			Coin:    "POLIS",
-			Amount:  floatAmount,
+			Amount:  amountFee,
 		}
 		_, err = p.Plutus.SubmitPayment(paymentBody)
 		if err != nil {
