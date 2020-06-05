@@ -175,7 +175,7 @@ func (p *Processor) handleConfirmingShifts(wg *sync.WaitGroup) {
 
 		err = checkTxId(&s.Payment)
 		if err != nil {
-			fmt.Println("Unable to get txId " + err.Error())
+			fmt.Println("Unable to get txId ", s.Payment, err.Error())
 			teleBot.SendError("Unable to get txId: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
