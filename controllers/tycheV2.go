@@ -18,7 +18,7 @@ import (
 	"github.com/grupokindynos/tyche/services"
 	"github.com/shopspring/decimal"
 
-	"github.com/grupokindynos/common/blockbook"
+	"github.com/grupokindynos/common/explorer"
 
 	"github.com/grupokindynos/common/plutus"
 
@@ -84,8 +84,8 @@ func (s *TycheControllerV2) broadCastTx(coinConfig *coins.Coin, rawTx string) (s
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinFactory.GetCoin("ETH")
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	return blockbookWrapper.SendTxWithMessage(rawTx)
+	explorerWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
+	return explorerWrapper.SendTxWithMessage(rawTx)
 }
 
 func (s *TycheControllerV2) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfoV2) {
@@ -231,7 +231,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	} else {
 		withdrawAmount = storedShift.StableCoinAmount
 	}
-	originUSDRateFloat, _ := decimal.NewFromInt(storedShift.Payment.Amount).DivRound(decimal.NewFromFloat(storedShift.StableCoinAmount), 3).Float64()
+	originUSDRateFloat, _ := decimal.NewFromInt(storedShift.Payment.Amount).Div(decimal.NewFromFloat(1e6)).DivRound(decimal.NewFromFloat(storedShift.StableCoinAmount), 3).Float64()
 
 	shift := hestia.ShiftV2{
 		ID:        storedShift.ID,
@@ -272,13 +272,14 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	if err != nil {
 		return nil, err
 	}
-	go s.decodeAndCheckTx(shift, storedShift, shiftPayment.RawTX)
+	go s.publishTx(shift, storedShift, shiftPayment.RawTX)
 	s.RemoveShiftFromMap(shiftPayment.ShiftId)
 	return shiftId, nil
 }
 
 func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo decimal.Decimal, paymentData models.PaymentInfoV2, err error) {
 	amountHandler := decimal.NewFromInt(prepareData.Amount)
+	amountHandler = amountHandler.Div(decimal.NewFromFloat(1e8))
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
 	inputAmount := amountHandler.Mul(decimal.NewFromFloat(1.0).Sub(decimal.NewFromFloat(selectedCoin.Shift.FeePercentage).DivRound(decimal.NewFromInt(100), 3)))
 	fee := amountHandler.Mul(decimal.NewFromFloat(selectedCoin.Shift.FeePercentage).DivRound(decimal.NewFromInt(100), 3))
@@ -311,7 +312,7 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	fromCoinToUSD := inputAmount.Mul(decimal.NewFromFloat(coinRatesUSD))
 	feeToUsd := fee.Mul(decimal.NewFromFloat(coinRatesUSD))
 
-	amountTo = inputAmount.Mul(rateAmountHandler)
+	amountTo = inputAmount.Mul(rateAmountHandler).Mul(decimal.NewFromInt(1e8))
 
 	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
 	if err != nil {
@@ -340,11 +341,11 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	feeUsdAmount, _ := feeToUsd.Float64()
 	paymentData = models.PaymentInfoV2{
 		Address: paymentAddress,
-		Amount:  inputAmount.IntPart(), // Amount + Fee
-		Fee:     fee.IntPart(),
-		Total:   inputAmount.Add(fee).IntPart(),
+		Amount:  inputAmount.Mul(decimal.NewFromInt(1e8)).IntPart(), // Amount + Fee
+		Fee:     fee.Mul(decimal.NewFromInt(1e8)).IntPart(),
+		Total:   inputAmount.Add(fee).Mul(decimal.NewFromInt(1e8)).IntPart(),
 		HasFee:  feeFlag,
-		Rate:    rateAmountHandler.IntPart(),
+		Rate:    rateAmountHandler.Mul(decimal.NewFromInt(1e8)).IntPart(),
 		FiatInfo: models.ExpectedFiatAmount{
 			Amount: fiatAmount,
 			Fee:    feeUsdAmount,
@@ -361,34 +362,8 @@ func (s *TycheControllerV2) RemoveShiftFromMap(uid string) {
 	s.mapLock.Unlock()
 }
 
-func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShiftData models.PrepareShiftInfoV2, rawTx string) {
-	// Validate Payment RawTx
-	body := plutus.ValidateRawTxReq{
-		Coin:    shiftData.Payment.Coin,
-		RawTx:   rawTx,
-		Amount:  shiftData.Payment.Amount,
-		Address: shiftData.Payment.Address,
-	}
-	valid, err := s.VerifyTxData(body)
-	if err != nil {
-		shiftData.Status = hestia.ShiftStatusV2Error
-		shiftData.Message = "could not validate rawtx" + err.Error()
-		_, err = s.Hestia.UpdateShiftV2(shiftData)
-		if err != nil {
-			return
-		}
-		return
-	}
-	if !valid {
-		shiftData.Status = hestia.ShiftStatusV2Error
-		shiftData.Message = "rawtx was invalid"
-		_, err = s.Hestia.UpdateShiftV2(shiftData)
-		if err != nil {
-			return
-		}
-		return
+func (s *TycheControllerV2) publishTx(shiftData hestia.ShiftV2, storedShiftData models.PrepareShiftInfoV2, rawTx string) {
 
-	}
 	// Broadcast rawTx
 	coinConfig, err := coinFactory.GetCoin(shiftData.Payment.Coin)
 	if err != nil {

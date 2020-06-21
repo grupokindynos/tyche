@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grupokindynos/common/blockbook"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
+	"github.com/grupokindynos/common/explorer"
 	"github.com/grupokindynos/common/hestia"
 	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/common/tokens/mrt"
@@ -305,8 +305,8 @@ func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, 
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinfactory.GetCoin("ETH")
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	txData, err := blockbookWrapper.GetTx(txid)
+	explorerWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
+	txData, err := explorerWrapper.GetTx(txid)
 	if err != nil {
 		return 0, err
 	}

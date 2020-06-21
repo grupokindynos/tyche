@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grupokindynos/common/blockbook"
+	"github.com/grupokindynos/common/explorer"
 	"github.com/shopspring/decimal"
 
 	"github.com/grupokindynos/common/plutus"
@@ -276,7 +276,7 @@ func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (str
 			coinConfig, _ = coinfactory.GetCoin("ETH")
 		}
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	blockbookWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
 	return blockbookWrapper.SendTxWithMessage(rawTx)
 }
 
