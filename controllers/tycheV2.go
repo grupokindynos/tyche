@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/common/explorer"
 
 	"log"
 	"strconv"
@@ -17,8 +18,6 @@ import (
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
 	"github.com/shopspring/decimal"
-
-	"github.com/grupokindynos/common/blockbook"
 
 	"github.com/grupokindynos/common/plutus"
 
@@ -84,8 +83,8 @@ func (s *TycheControllerV2) broadCastTx(coinConfig *coins.Coin, rawTx string) (s
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinFactory.GetCoin("ETH")
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	return blockbookWrapper.SendTxWithMessage(rawTx)
+	explorerWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
+	return explorerWrapper.SendTxWithMessage(rawTx)
 }
 
 func (s *TycheControllerV2) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfoV2) {

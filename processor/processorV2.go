@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/common/explorer"
 	"github.com/shopspring/decimal"
 	"io/ioutil"
 	"log"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/grupokindynos/adrestia-go/models"
-	"github.com/grupokindynos/common/blockbook"
 	coinFactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
@@ -399,8 +399,9 @@ func (p *TycheProcessorV2) getConfirmations(coinConfig *coins.Coin, txid string)
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinFactory.GetCoin("ETH")
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	txData, err := blockbookWrapper.GetTx(txid)
+
+	explorerWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
+	txData, err := explorerWrapper.GetTx(txid)
 	if err != nil {
 		return 0, err
 	}
