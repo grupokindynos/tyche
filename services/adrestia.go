@@ -182,7 +182,8 @@ func (a *AdrestiaRequests) Trade(tradeParams hestia.Trade) (txId string, err err
 }
 
 func (a *AdrestiaRequests) StockBalance(asset string) (balance models.BalanceResponse, err error) {
-	url := os.Getenv(a.AdrestiaUrl) + "stock/balance/" + asset
+	// url := os.Getenv(a.AdrestiaUrl) + "stock/balance/" + asset
+	url := "http://localhost:8082/" + "stock/balance/" + asset
 	req, err := mvt.CreateMVTToken("GET", url, "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return
