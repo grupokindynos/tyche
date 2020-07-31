@@ -129,8 +129,8 @@ func ApplyRoutes(r *gin.Engine) {
 	}
 
 	// Backward compatibility
-	go checkAndRemoveShifts(tycheCtrl)
-	go checkAndRemoveV2Shifts(tycheV2Ctrl)
+	//go checkAndRemoveShifts(tycheCtrl)
+	//go checkAndRemoveV2Shifts(tycheV2Ctrl)
 
 	/* api := r.Group("/")
 	{

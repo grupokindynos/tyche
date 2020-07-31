@@ -115,7 +115,7 @@ func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Param
 		return nil, err
 	}
 
-	amountTo, payment, err := GetRatesV2(prepareData, selectedCoin, s.Obol, s.Adrestia)
+	amountTo, payment, err := s.GetRatesV2(prepareData, selectedCoin)
 	log.Println("amountTo after GetRatesV2", amountTo)
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	} else {
 		withdrawAmount = storedShift.StableCoinAmount
 	}
-	originUSDRateFloat, _ := decimal.NewFromInt(storedShift.Payment.Amount).DivRound(decimal.NewFromFloat(storedShift.StableCoinAmount), 3).Float64()
+	originUSDRateFloat, _ := decimal.NewFromInt(storedShift.Payment.Amount).Shift(-8).DivRound(decimal.NewFromFloat(storedShift.StableCoinAmount), 3).Float64()
 
 	shift := hestia.ShiftV2{
 		ID:        storedShift.ID,
@@ -276,15 +276,17 @@ func (s *TycheControllerV2) StoreV2(uid string, payload []byte, _ models.Params)
 	return shiftId, nil
 }
 
-func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin, obolService obol.ObolService, adrestiaService services.AdrestiaService) (amountTo decimal.Decimal, paymentData models.PaymentInfoV2, err error) {
+func (s *TycheControllerV2) GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin) (amountTo decimal.Decimal, paymentData models.PaymentInfoV2, err error) {
 	amountHandler := decimal.NewFromInt(prepareData.Amount)
 	// Get rates from coin to target coin. Determines input coin workable and fee amount, both come in the same transaction.
 	inputAmount := amountHandler.Mul(decimal.NewFromFloat(1.0).Sub(decimal.NewFromFloat(selectedCoin.Shift.FeePercentage).DivRound(decimal.NewFromInt(100), 3)))
 	fee := amountHandler.Mul(decimal.NewFromFloat(selectedCoin.Shift.FeePercentage).DivRound(decimal.NewFromInt(100), 3))
 	//fee := amount.AmountType(amountHandler.ToUnit(amount.AmountSats) * selectedCoin.Shift.FeePercentage / float64(100))
 
+	inputAmountDec := inputAmount.Shift(-8)
+
 	// Retrieve conversion rates
-	rate, err := obolService.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, inputAmount.String())
+	rate, err := s.Obol.GetCoin2CoinRatesWithAmount(prepareData.FromCoin, prepareData.ToCoin, inputAmountDec.String())
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
 		return
@@ -292,34 +294,26 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 	// Handler for exchange rate
 	rateAmountHandler := decimal.NewFromFloat(rate.AveragePrice)
 
-	// Retrieve Dollar conversion
-	coinRates, err := obolService.GetCoinRates(prepareData.FromCoin)
+	coinRatesUSD, err := s.Obol.GetCoin2FIATRate(prepareData.FromCoin, "USD")
 	if err != nil {
 		err = cerrors.ErrorObtainingRates
 		return
 	}
 
-	var coinRatesUSD float64
-	for _, r := range coinRates {
-		if r.Code == "USD" {
-			coinRatesUSD = r.Rate
-			break
-		}
-	}
 	// Values for estimated target conversion
 	fromCoinToUSD := inputAmount.Mul(decimal.NewFromFloat(coinRatesUSD))
 	feeToUsd := fee.Mul(decimal.NewFromFloat(coinRatesUSD))
 
 	amountTo = inputAmount.Mul(rateAmountHandler)
 
-	paymentAddress, err := adrestiaService.GetAddress(prepareData.FromCoin)
+	paymentAddress, err := s.Adrestia.GetAddress(prepareData.FromCoin)
 	if err != nil {
 		log.Println("could not get sending address for coin " + prepareData.FromCoin)
 		err = cerrors.ErrorFillingPaymentInformation
 		return
 	}
 
-	pathInfo, err := adrestiaService.GetPath(prepareData.FromCoin, prepareData.ToCoin)
+	pathInfo, err := s.Adrestia.GetPath(prepareData.FromCoin, prepareData.ToCoin)
 	if err != nil {
 		err = cerrors.ErrorFillingPaymentInformation
 		return
@@ -335,15 +329,16 @@ func GetRatesV2(prepareData models.PrepareShiftRequest, selectedCoin hestia.Coin
 		feeFlag = false
 	}
 
-	fiatAmount, _ := fromCoinToUSD.Float64()
-	feeUsdAmount, _ := feeToUsd.Float64()
+	fiatAmount, _ := fromCoinToUSD.Shift(-8).Float64()
+	feeUsdAmount, _ := feeToUsd.Shift(-8).Float64()
+	rateAmount, _ := rateAmountHandler.Float64()
 	paymentData = models.PaymentInfoV2{
 		Address: paymentAddress,
 		Amount:  inputAmount.IntPart(), // Amount + Fee
 		Fee:     fee.IntPart(),
 		Total:   inputAmount.Add(fee).IntPart(),
 		HasFee:  feeFlag,
-		Rate:    rateAmountHandler.IntPart(),
+		Rate:    rateAmount,
 		FiatInfo: models.ExpectedFiatAmount{
 			Amount: fiatAmount,
 			Fee:    feeUsdAmount,
