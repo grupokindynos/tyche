@@ -97,7 +97,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 
 		paymentConfirmations, err := p.getConfirmations(paymentCoinConfig, s.Payment.Txid)
 		if err != nil {
-			s.Message = "could not get payment confirmations"
+			log.Println("Unable to get payment confirmations " + err.Error())
 			continue
 		}
 		s.Payment.Confirmations = int32(paymentConfirmations)
@@ -106,18 +106,18 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 		if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
 			s.Status = hestia.ShiftStatusV2ProcessingOrders
 			s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCreated
-			_, err = p.Hestia.UpdateShiftV2(s)
-			if err != nil {
-				fmt.Println(s.ID, " Unable to update shift confirmations: "+err.Error())
-				continue
-			}
+
 			if s.InboundTrade.Conversions == nil {
 				s.InboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
 			}
 			if s.OutboundTrade.Conversions == nil {
 				s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
 			}
-			continue
+		}
+
+		_, err = p.Hestia.UpdateShiftV2(s)
+		if err != nil {
+			fmt.Println(s.ID, " Unable to update shift confirmations: "+err.Error())
 		}
 	}
 }
