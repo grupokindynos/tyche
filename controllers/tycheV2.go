@@ -65,7 +65,7 @@ func (s *TycheControllerV2) BalanceV2(_ string, _ []byte, params models.Params) 
 		return nil, err
 	}
 	rate, err := s.Obol.GetCoin2CoinRates(balance.Asset, params.Coin)
-	if err != nil {
+ 	if err != nil {
 		return nil, err
 	}
 	fmt.Println(rate, balance.Balance)
