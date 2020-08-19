@@ -70,7 +70,7 @@ func main() {
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
 		adrestiaEnv = "ADRESTIA_LOCAL_URL"
-		plutusEnv = "PLUTUS_LOCAL_URL"
+		plutusEnv = "PLUTUS_PRODUCTION_URL"
 
 		// check if testing flags were set
 		noTxsAvailable = *noTxs
