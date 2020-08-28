@@ -51,6 +51,7 @@ func (s *TycheControllerV2) StatusV2(uid string, _ []byte, _ models.Params) (int
 	whitelist := strings.Split(whitelistIds, ",")
 	for _, id := range whitelist {
 		if uid == id {
+			log.Println("Whitelist Access for ", uid)
 			return true, nil
 		}
 	}
@@ -59,6 +60,7 @@ func (s *TycheControllerV2) StatusV2(uid string, _ []byte, _ models.Params) (int
 	/* if uid == "gwY3fy79LZMtUbSNBDoom7llGfh2" || uid == "HMOXcoZJxfMKFca9IukZIaqI2Z02" || uid == "yEF8YP4Ou9aCEqSPQPqDslviGfT2" || uid == "dCtcq9M4JGMo5TraWv2GhkYclHR2" || uid == "aB0bQYzk5LhADlDGoeE80bEzSaw1" || uid == "QqDLwEfxKKZMFr2jMSwu1Mfh2I53" || uid == "ZUucrGooOOXyGUEj6AGaH8epoBn2" {
 		return true, nil
 	}*/
+	log.Println("Regular access")
 	status, err := s.Hestia.GetShiftStatus()
 	if err != nil {
 		return nil, err
