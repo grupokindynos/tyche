@@ -2,11 +2,13 @@ package processor
 
 import (
 	"errors"
-	"github.com/grupokindynos/common/blockbook"
 	cf "github.com/grupokindynos/common/coin-factory"
 	coinFactory "github.com/grupokindynos/common/coin-factory"
+	"github.com/grupokindynos/common/explorer"
 	"github.com/grupokindynos/common/hestia"
+	"math"
 	"strconv"
+	"strings"
 )
 
 func checkTxId(payment *hestia.Payment) error {
@@ -36,33 +38,45 @@ func getMissingTxId(coin string, address string, amount int64) (string, error) {
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinFactory.GetCoin("ETH")
 	}
-	blockBook := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	return blockBook.FindDepositTxId(address, amount)
+	explorerWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
+	return explorerWrapper.FindDepositTxId(address, amount)
 }
 
-func getUserReceivedAmount(currency string, addr string, txId string) (float64, error) { // Currently doesnt support tokens
-	var blockExplorer blockbook.BlockBook
+func getUserReceivedAmount(currency string, addr string, txId string) (float64, error) {
+	token := false
 	coin, err := cf.GetCoin(currency)
 	if err != nil {
-		return 0.0, errors.New("Unable to get coin")
+		return 0.0, errors.New("unable to get coin")
 	}
 	if coin.Info.Token && coin.Info.Tag != "ETH" {
 		coin, _ = cf.GetCoin("ETH")
+		token = true
 	}
-	blockExplorer.Url = "https://" + coin.BlockchainInfo.ExternalSource
-	res, err := blockExplorer.GetTx(txId)
+	blockbookWrapper := explorer.NewBlockBookWrapper(coin.Info.Blockbook)
+
+	res, err := blockbookWrapper.GetTx(txId)
 	if err != nil {
 		return 0.0, errors.New("Error while getting tx " + err.Error())
 	}
+
 	if res.Confirmations > 0 {
-		for _, txVout := range res.Vout {
-			for _, address := range txVout.Addresses {
-				if address == addr {
-					value, err := strconv.ParseFloat(txVout.Value, 64)
-					if err != nil {
-						return 0.0, err
+		if token {
+			for _, transfer := range res.TokenTransfers {
+				if strings.ToLower(transfer.To) == strings.ToLower(addr) {
+					value, _ := strconv.Atoi(transfer.Value)
+					return float64(value) / math.Pow10(transfer.Decimals), nil
+				}
+			}
+		} else {
+			for _, txVout := range res.Vout {
+				for _, address := range txVout.Addresses {
+					if address == addr {
+						value, err := strconv.ParseFloat(txVout.Value, 64)
+						if err != nil {
+							return 0.0, err
+						}
+						return value / math.Pow10(8), nil
 					}
-					return value, nil
 				}
 			}
 		}

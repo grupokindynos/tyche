@@ -79,7 +79,7 @@ type PaymentInfoV2 struct {
 	Amount      int64                  `json:"amount"`
 	Total       int64                  `json:"total"`
 	HasFee      bool                   `json:"has_fee"`
-	Rate        int64                  `json:"rate"`
+	Rate        float64                `json:"rate"`
 	FiatInfo    ExpectedFiatAmount     `json:"fiat_info"`
 	Conversions models.PathResponse    `json:"conversions"`
 }

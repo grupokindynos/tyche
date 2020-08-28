@@ -178,7 +178,7 @@ func (a *HestiaRequests) GetShiftsByTimestampV2(uid string, timestamp string) (s
 		return shifts, err
 	}
 	client := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	res, err := client.Do(req)

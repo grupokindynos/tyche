@@ -70,7 +70,7 @@ func main() {
 	if *localRun {
 		hestiaEnv = "HESTIA_LOCAL_URL"
 		adrestiaEnv = "ADRESTIA_LOCAL_URL"
-		plutusEnv = "PLUTUS_LOCAL_URL"
+		plutusEnv = "PLUTUS_PRODUCTION_URL"
 
 		// check if testing flags were set
 		noTxsAvailable = *noTxs
@@ -108,14 +108,14 @@ func GetApp() *gin.Engine {
 }
 
 func ApplyRoutes(r *gin.Engine) {
-	tycheCtrl := &controllers.TycheController{
+	/*tycheCtrl := &controllers.TycheController{
 		PrepareShifts: prepareShiftsMap,
 		TxsAvailable:  !noTxsAvailable,
 		Hestia:        &services.HestiaRequests{HestiaURL: hestiaEnv},
 		Plutus:        &services.PlutusRequests{PlutusUrl: os.Getenv(plutusEnv)},
 		Obol:          &obol.ObolRequest{ObolURL: os.Getenv("OBOL_PRODUCTION_URL")},
 		DevMode:       devMode,
-	}
+	}*/
 
 	// Service Instances
 	tycheV2Ctrl := &controllers.TycheControllerV2{
@@ -129,28 +129,7 @@ func ApplyRoutes(r *gin.Engine) {
 	}
 
 	// Backward compatibility
-	go checkAndRemoveShifts(tycheCtrl)
 	go checkAndRemoveV2Shifts(tycheV2Ctrl)
-
-	/* api := r.Group("/")
-	{
-		api.GET("balance/:coin", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Balance) })
-		api.GET("status", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Status) })
-		api.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Prepare) })
-		api.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.Store) })
-	}
-	r.NoRoute(func(c *gin.Context) {
-		c.String(http.StatusNotFound, "Not Found")
-	})*/
-
-	apiV11 := r.Group("/v1.1/")
-	{
-		apiV11.POST("prepare", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.PrepareV11) })
-		apiV11.POST("new", func(context *gin.Context) { ValidateRequest(context, tycheCtrl.StoreV11) })
-	}
-	r.NoRoute(func(c *gin.Context) {
-		c.String(http.StatusNotFound, "Not Found")
-	})
 
 	apiV2 := r.Group("/v2/")
 	{
@@ -163,17 +142,17 @@ func ApplyRoutes(r *gin.Engine) {
 		c.String(http.StatusNotFound, "Not Found")
 	})
 
-	username := os.Getenv("OPEN_API_USER")
+	/*username := os.Getenv("OPEN_API_USER")
 	password := os.Getenv("OPEN_API_PASSWORD")
 	openApi := r.Group("/shift/open/", gin.BasicAuth(gin.Accounts{
 		username: password,
 	}))
 	{
-		openApi.GET("balance/:coin", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenBalance) })
-		openApi.GET("status", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenStatus) })
-		openApi.POST("prepare", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenPrepare) })
-		openApi.POST("new", func(context *gin.Context) { ValidateOpenRequest(context, tycheCtrl.OpenStore) })
-	}
+		openApi.GET("balance/:coin", func(context *gin.Context) { ValidateOpenRequest(context, tycheV2Ctrl.OpenBalance) })
+		openApi.GET("status", func(context *gin.Context) { ValidateOpenRequest(context, tycheV2Ctrl.OpenStatus) })
+		openApi.POST("prepare", func(context *gin.Context) { ValidateOpenRequest(context, tycheV2Ctrl.OpenPrepare) })
+		openApi.POST("new", func(context *gin.Context) { ValidateOpenRequest(context, tycheV2Ctrl.OpenStore) })
+	}*/
 }
 
 func ValidateRequest(c *gin.Context, method func(uid string, payload []byte, params models.Params) (interface{}, error)) {
@@ -240,21 +219,6 @@ func runProcessorV2() {
 	ticker := time.NewTicker(1 * time.Minute)
 	for range ticker.C {
 		proc2.Start()
-	}
-}
-
-func checkAndRemoveShifts(ctrl *controllers.TycheController) {
-	for {
-		time.Sleep(time.Second * 60)
-		log.Print("Removing obsolete shifts request")
-		count := 0
-		for k, v := range ctrl.PrepareShifts {
-			if time.Now().Unix() > v.Timestamp+prepareShiftTimeframe {
-				count += 1
-				ctrl.RemoveShiftFromMap(k)
-			}
-		}
-		log.Printf("Removed %v shifts", count)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/common/explorer"
 	"github.com/shopspring/decimal"
 	"io/ioutil"
 	"log"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/grupokindynos/adrestia-go/models"
-	"github.com/grupokindynos/common/blockbook"
 	coinFactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
@@ -97,7 +97,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 
 		paymentConfirmations, err := p.getConfirmations(paymentCoinConfig, s.Payment.Txid)
 		if err != nil {
-			s.Message = "could not get payment confirmations"
+			log.Println("Unable to get payment confirmations " + err.Error())
 			continue
 		}
 		s.Payment.Confirmations = int32(paymentConfirmations)
@@ -106,25 +106,18 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 		if p.SkipValidations || s.Payment.Confirmations >= int32(paymentCoinConfig.BlockchainInfo.MinConfirmations) {
 			s.Status = hestia.ShiftStatusV2ProcessingOrders
 			s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCreated
-			_, err = p.Hestia.UpdateShiftV2(s)
-			if err != nil {
-				fmt.Println(s.ID, " Unable to update shift confirmations: "+err.Error())
-				continue
-			}
+
 			if s.InboundTrade.Conversions == nil {
 				s.InboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
 			}
 			if s.OutboundTrade.Conversions == nil {
 				s.OutboundTrade.Status = hestia.ShiftV2TradeStatusCompleted
 			}
-			continue
 		}
 
-		s.Status = hestia.ShiftStatusV2ProcessingOrders
 		_, err = p.Hestia.UpdateShiftV2(s)
 		if err != nil {
-			fmt.Println("Unable to update shift confirmations: " + err.Error())
-			continue
+			fmt.Println(s.ID, " Unable to update shift confirmations: "+err.Error())
 		}
 	}
 }
@@ -199,7 +192,7 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 				if txId != "" {
 					shift.PaymentProof = txId
 					trade.Status = hestia.ShiftV2TradeStatusUserDeposit
-				} else if (time.Now().Unix() - shift.ProofTimestamp) > 10*60 {
+				} else if (time.Now().Unix() - shift.ProofTimestamp) > 15*60 {
 					trade.Status = hestia.ShiftV2TradeStatusWithdrawCompleted
 				}
 				break
@@ -399,8 +392,9 @@ func (p *TycheProcessorV2) getConfirmations(coinConfig *coins.Coin, txid string)
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinFactory.GetCoin("ETH")
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	txData, err := blockbookWrapper.GetTx(txid)
+
+	explorerWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
+	txData, err := explorerWrapper.GetTx(txid)
 	if err != nil {
 		return 0, err
 	}

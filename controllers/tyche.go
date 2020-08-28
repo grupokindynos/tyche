@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grupokindynos/common/explorer"
 	"sync"
 	"time"
 
-	"github.com/grupokindynos/common/blockbook"
 	"github.com/shopspring/decimal"
 
 	"github.com/grupokindynos/common/plutus"
@@ -276,8 +276,8 @@ func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (str
 			coinConfig, _ = coinfactory.GetCoin("ETH")
 		}
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	return blockbookWrapper.SendTxWithMessage(rawTx)
+	explorerWrapper, _ := explorer.NewExplorerFactory().GetExplorerByCoin(*coinConfig)
+	return explorerWrapper.SendTxWithMessage(rawTx)
 }
 
 func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfo) {
