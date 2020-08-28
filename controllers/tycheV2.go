@@ -143,7 +143,7 @@ func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Param
 			totalAmountFiat += fiatAmount
 		}
 	}
-	if totalAmountFiat > 200.0 {
+	if totalAmountFiat > 100.0 {
 		return nil, cerrors.ErrorShiftDailyLimit
 	}
 
