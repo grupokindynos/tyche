@@ -2,7 +2,7 @@ package processor
 
 import (
 	"errors"
-	"github.com/grupokindynos/common/explorer"
+	"github.com/grupokindynos/common/blockbook"
 	cf "github.com/grupokindynos/common/coin-factory"
 	coinFactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/hestia"
@@ -32,17 +32,16 @@ func checkTxIdWithFee(payment *hestia.PaymentWithFee) error {
 }
 
 func getMissingTxId(coin string, address string, amount int64) (string, error) {
-	ef := explorer.NewExplorerFactory()
 	coinConfig, _ := coinFactory.GetCoin(coin)
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinFactory.GetCoin("ETH")
 	}
-	exp, _ := ef.GetExplorerByCoin(*coinConfig)
-	return exp.FindDepositTxId(address, amount)
+	blockBook := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	return blockBook.FindDepositTxId(address, amount)
 }
 
-func getUserReceivedAmount(currency string, addr string, txId string) (float64, error) {
-	ef := explorer.NewExplorerFactory()
+func getUserReceivedAmount(currency string, addr string, txId string) (float64, error) { // Currently doesnt support tokens
+	var blockExplorer blockbook.BlockBook
 	coin, err := cf.GetCoin(currency)
 	if err != nil {
 		return 0.0, errors.New("Unable to get coin")
@@ -50,11 +49,8 @@ func getUserReceivedAmount(currency string, addr string, txId string) (float64, 
 	if coin.Info.Token && coin.Info.Tag != "ETH" {
 		coin, _ = cf.GetCoin("ETH")
 	}
-	exp, _ := ef.GetExplorerByCoin(*coin)
-
-	// TODO Review this
-	// blockExplorer.Url = "https://" + coin.BlockchainInfo.ExternalSource
-	res, err := exp.GetTx(txId)
+	blockExplorer.Url = "https://" + coin.BlockchainInfo.ExternalSource
+	res, err := blockExplorer.GetTx(txId)
 	if err != nil {
 		return 0.0, errors.New("Error while getting tx " + err.Error())
 	}

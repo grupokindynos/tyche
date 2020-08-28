@@ -16,7 +16,7 @@ var once sync.Once
 
 func GetInstance() *Bot {
 	once.Do(func() {
-		instance = &Bot{telegramBot: telegram.NewTelegramBot(os.Getenv("TELEGRAM_API_KEY")), cache: make(map[string][2]int)}
+		instance = &Bot{telegramBot: telegram.NewTelegramBot(os.Getenv("TELEGRAM_API_KEY"), os.Getenv("TELEGRAM_CHAT_ID")), cache: make(map[string][2]int)}
 	})
 	return instance
 }
@@ -29,12 +29,12 @@ func (b *Bot) SendError(msg string) {
 		//times not called goes to 0
 		counters[1] = 0
 		if counters[0]%60 == 0 { //send message every 60 repetitions = 1 hour
-			b.telegramBot.SendError(msg, os.Getenv("TELEGRAM_CHAT_ID"))
+			b.telegramBot.SendError(msg)
 		}
 		b.cache[msg] = counters
 	} else //its an unseen error
 	{
-		b.telegramBot.SendError(msg, os.Getenv("TELEGRAM_CHAT_ID"))
+		b.telegramBot.SendError(msg)
 		//add new msg to cache
 		b.cache[msg] = [2]int{0, 0}
 	}

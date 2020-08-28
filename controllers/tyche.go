@@ -7,13 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grupokindynos/common/blockbook"
 	"github.com/shopspring/decimal"
+
+	"github.com/grupokindynos/common/plutus"
 
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
-	"github.com/grupokindynos/common/explorer"
 	"github.com/grupokindynos/common/hestia"
-	"github.com/grupokindynos/common/plutus"
 	"github.com/grupokindynos/tyche/models"
 
 	cerrors "github.com/grupokindynos/common/errors"
@@ -267,7 +268,6 @@ func (s *TycheController) decodeAndCheckTx(shiftData hestia.Shift, storedShiftDa
 }
 
 func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (string, error, string) {
-	ef := explorer.NewExplorerFactory()
 	if !s.TxsAvailable {
 		return "not published due no-txs flag", nil, ""
 	}
@@ -276,8 +276,8 @@ func (s *TycheController) broadCastTx(coinConfig *coins.Coin, rawTx string) (str
 			coinConfig, _ = coinfactory.GetCoin("ETH")
 		}
 	}
-	exp, _ := ef.GetExplorerByCoin(*coinConfig)
-	return exp.SendTxWithMessage(rawTx)
+	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
+	return blockbookWrapper.SendTxWithMessage(rawTx)
 }
 
 func (s *TycheController) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfo) {
