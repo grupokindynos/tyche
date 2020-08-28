@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,13 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eabz/btcutil"
-	"github.com/eabz/btcutil/txscript"
 	cerrors "github.com/grupokindynos/common/errors"
 	"github.com/grupokindynos/tyche/services"
 	"github.com/shopspring/decimal"
 
-	"github.com/grupokindynos/common/blockbook"
+	"github.com/grupokindynos/common/explorer"
 
 	"github.com/grupokindynos/common/plutus"
 
@@ -88,14 +84,15 @@ func (s *TycheControllerV2) BalanceV2(_ string, _ []byte, params models.Params) 
 }
 
 func (s *TycheControllerV2) broadCastTx(coinConfig *coins.Coin, rawTx string) (string, error, string) {
+	ef := explorer.NewExplorerFactory()
 	if !s.TxsAvailable {
 		return "not published due no-txs flag", nil, ""
 	}
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinFactory.GetCoin("ETH")
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	return blockbookWrapper.SendTxWithMessage(rawTx)
+	exp, _ := ef.GetExplorerByCoin(*coinConfig)
+	return exp.SendTxWithMessage(rawTx)
 }
 
 func (s *TycheControllerV2) AddShiftToMap(uid string, shiftPrepare models.PrepareShiftInfoV2) {
@@ -372,8 +369,9 @@ func (s *TycheControllerV2) RemoveShiftFromMap(uid string) {
 }
 
 func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShiftData models.PrepareShiftInfoV2, rawTx string) {
+
 	// Validate Payment RawTx
-	body := plutus.ValidateRawTxReq{
+	/* body := plutus.ValidateRawTxReq{
 		Coin:    shiftData.Payment.Coin,
 		RawTx:   rawTx,
 		Amount:  shiftData.Payment.Amount,
@@ -398,7 +396,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 		}
 		return
 
-	}
+	} */
 	// Broadcast rawTx
 	coinConfig, err := coinFactory.GetCoin(shiftData.Payment.Coin)
 	if err != nil {
@@ -434,7 +432,7 @@ func (s *TycheControllerV2) decodeAndCheckTx(shiftData hestia.ShiftV2, storedShi
 	}
 }
 
-func (s *TycheControllerV2) VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
+/* func (s *TycheControllerV2) VerifyTxData(data plutus.ValidateRawTxReq) (bool, error) {
 	coinConfig, err := coinFactory.GetCoin(data.Coin)
 	if err != nil {
 		return false, err
@@ -475,4 +473,4 @@ func (s *TycheControllerV2) VerifyTxData(data plutus.ValidateRawTxReq) (bool, er
 		}
 	}
 	return isAddress && isValue, nil
-}
+} */

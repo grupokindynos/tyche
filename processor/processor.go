@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grupokindynos/common/blockbook"
+	"github.com/grupokindynos/common/explorer"
 	coinfactory "github.com/grupokindynos/common/coin-factory"
 	"github.com/grupokindynos/common/coin-factory/coins"
 	"github.com/grupokindynos/common/hestia"
@@ -302,11 +302,12 @@ func (p *Processor) getShifts(status hestia.ShiftStatus) ([]hestia.Shift, error)
 }
 
 func (p *Processor) getConfirmations(coinConfig *coins.Coin, txid string) (int, error) {
+	ef := explorer.NewExplorerFactory()
 	if coinConfig.Info.Token && coinConfig.Info.Tag != "ETH" {
 		coinConfig, _ = coinfactory.GetCoin("ETH")
 	}
-	blockbookWrapper := blockbook.NewBlockBookWrapper(coinConfig.Info.Blockbook)
-	txData, err := blockbookWrapper.GetTx(txid)
+	exp, _ := ef.GetExplorerByCoin(*coinConfig)
+	txData, err := exp.GetTx(txid)
 	if err != nil {
 		return 0, err
 	}
