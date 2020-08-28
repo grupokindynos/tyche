@@ -198,6 +198,8 @@ github.com/grupokindynos/common v0.0.0-20200416173907-1ec6bf7a7764 h1:R41xJv4xOi
 github.com/grupokindynos/common v0.0.0-20200416173907-1ec6bf7a7764/go.mod h1:54Nv1EC/vlsMTdys83LQ7jHluB+bY5tXodU1orxqoAA=
 github.com/grupokindynos/common v0.0.0-20200604170804-ddf10d1f225f h1:17qgURPM2H1Qh3Jsm4qRMw2nrRl4WThh2nbU6htDE64=
 github.com/grupokindynos/common v0.0.0-20200604170804-ddf10d1f225f/go.mod h1:lCXEoFdFmLhbC6bGfhkByFYv6ndS+j+qr+SUBZ4ryx0=
+github.com/grupokindynos/common v0.0.0-20200827165709-2a9889cbf06d h1:rkulPUQONh/JO/jUKj41fDVHe3KybvB5pbFMeZXhmS4=
+github.com/grupokindynos/common v0.0.0-20200827165709-2a9889cbf06d/go.mod h1:01s5/fk/NE85VAR6RiFfUWWiy/UnSBRLIltJCAu56Bw=
 github.com/grupokindynos/go-binance v0.0.0-20200218200020-be83de467e5d h1:8KbHjP+K2y2CNQQcJXrxeSdRDNCp94qJn6RK08KwMhk=
 github.com/grupokindynos/go-binance v0.0.0-20200218200020-be83de467e5d/go.mod h1:RgYTB+ZsGwA2qfu4o9ObHcsGijn3F04BdV5Nv0mmMqI=
 github.com/hashicorp/consul/api v1.3.0/go.mod h1:MmDNSzIMUjNpY/mQ398R4bk2FnqQLoPndWW5VkKPlCE=
@@ -280,6 +282,8 @@ github.com/martinboehm/btcd v0.0.0-20200313230603-83af86142d93/go.mod h1:rKQj/jG
 github.com/martinboehm/btcutil v0.0.0-20180706230648-ab6388e0c60a/go.mod h1:NIviPmxe43yBgIB4HGB4w4kv9/s5kaDa/pi+wZAAxQo=
 github.com/martinboehm/btcutil v0.0.0-20191023112652-a3d2b8457b77 h1:7zz+af5/g+BniyVlRcECDhVT9qK9sIgw0obqRgwhmbE=
 github.com/martinboehm/btcutil v0.0.0-20191023112652-a3d2b8457b77/go.mod h1:NIviPmxe43yBgIB4HGB4w4kv9/s5kaDa/pi+wZAAxQo=
+github.com/martinboehm/btcutil v0.0.0-20200229134221-d7706467ae8f h1:MMI9XvVjNHkqQDDyud0Ll0qd/w4jAhgkLZMY8q6KbR8=
+github.com/martinboehm/btcutil v0.0.0-20200229134221-d7706467ae8f/go.mod h1:NIviPmxe43yBgIB4HGB4w4kv9/s5kaDa/pi+wZAAxQo=
 github.com/mattn/go-colorable v0.0.9/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=
 github.com/mattn/go-isatty v0.0.3/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/mattn/go-isatty v0.0.4/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
