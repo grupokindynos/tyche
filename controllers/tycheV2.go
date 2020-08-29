@@ -49,6 +49,7 @@ func (s *TycheControllerV2) StatusV2(uid string, _ []byte, _ models.Params) (int
 	}
 	whitelistIds := os.Getenv("WHITELIST")
 	whitelist := strings.Split(whitelistIds, ",")
+	log.Println(whitelist)
 	for _, id := range whitelist {
 		if uid == id {
 			log.Println("Whitelist Access for ", uid)
@@ -143,7 +144,7 @@ func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Param
 			totalAmountFiat += fiatAmount
 		}
 	}
-	if totalAmountFiat > 100.0 {
+	if totalAmountFiat > 105.0 {
 		return nil, cerrors.ErrorShiftDailyLimit
 	}
 
