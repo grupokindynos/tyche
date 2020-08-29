@@ -50,6 +50,7 @@ func (s *TycheControllerV2) StatusV2(uid string, _ []byte, _ models.Params) (int
 	whitelistIds := os.Getenv("WHITELIST")
 	whitelist := strings.Split(whitelistIds, ",")
 	log.Println(whitelist)
+	log.Println(uid)
 	for _, id := range whitelist {
 		if uid == id {
 			log.Println("Whitelist Access for ", uid)
