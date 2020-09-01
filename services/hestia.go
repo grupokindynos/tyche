@@ -18,12 +18,12 @@ type HestiaRequests struct {
 }
 
 func (a *HestiaRequests) GetShiftStatus() (hestia.Config, error) {
-	req, err := mvt.CreateMVTToken("GET", os.Getenv(a.HestiaURL)+"/config", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
+	req, err := mvt.CreateMVTToken("GET", os.Getenv(a.HestiaURL)+"config", "tyche", os.Getenv("MASTER_PASSWORD"), nil, os.Getenv("HESTIA_AUTH_USERNAME"), os.Getenv("HESTIA_AUTH_PASSWORD"), os.Getenv("TYCHE_PRIV_KEY"))
 	if err != nil {
 		return hestia.Config{}, err
 	}
 	client := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 15 * time.Second,
 	}
 	res, err := client.Do(req)
 	if err != nil {
