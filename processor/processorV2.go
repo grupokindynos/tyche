@@ -67,7 +67,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 	fmt.Println("Created Shifts", shifts)
 	if err != nil {
 		fmt.Println("Confirming shifts processor finished with errors: " + err.Error())
-		teleBot.SendError("Confirming shifts processor finished with errors: " + err.Error())
+		teleBot2.SendError("Confirming shifts processor finished with errors: " + err.Error())
 		return
 	}
 	// Check confirmations and return
@@ -75,7 +75,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 		paymentCoinConfig, err := coinFactory.GetCoin(s.Payment.Coin)
 		if err != nil {
 			fmt.Println("Unable to get payment coin configuration: " + err.Error())
-			teleBot.SendError("Unable to get payment coin configuration: " + err.Error() + "\n Shift ID: " + s.ID)
+			teleBot2.SendError("Unable to get payment coin configuration: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
 		if paymentCoinConfig.Info.Token && paymentCoinConfig.Info.Tag != "ETH" {
@@ -91,7 +91,7 @@ func (p *TycheProcessorV2) handleCreatedShifts(wg *sync.WaitGroup) {
 		err = checkTxIdWithFee(&s.Payment)
 		if err != nil {
 			fmt.Println("Unable to get txId " + err.Error())
-			teleBot.SendError("Unable to get txId: " + err.Error() + "\n Shift ID: " + s.ID)
+			teleBot2.SendError("Unable to get txId: " + err.Error() + "\n Shift ID: " + s.ID)
 			continue
 		}
 
@@ -224,7 +224,7 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 	shifts, err := p.getRefundShifts()
 	if err != nil {
 		fmt.Println("Refund shifts processor finished with errors: " + err.Error())
-		teleBot.SendError("Refund shifts processor finished with errors: " + err.Error())
+		teleBot2.SendError("Refund shifts processor finished with errors: " + err.Error())
 		return
 	}
 	for _, shift := range shifts {
@@ -239,14 +239,14 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 			_, err := p.Plutus.SubmitPayment(paymentBody)
 			if err != nil {
 				fmt.Println("unable to submit refund payment")
-				teleBot.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
+				teleBot2.SendError("Unable to submit refund payment: " + err.Error() + "\n Shift ID: " + shift.ID)
 				continue
 			}
 			shift.Status = hestia.ShiftStatusV2Refunded
 			_, err = p.Hestia.UpdateShiftV2(shift)
 			if err != nil {
 				fmt.Println("unable to update shift")
-				teleBot.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
+				teleBot2.SendError("Unable to update shift: " + err.Error() + "\n Shift ID: " + shift.ID)
 				continue
 			}
 			continue
