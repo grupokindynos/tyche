@@ -157,6 +157,7 @@ func ApplyRoutes(r *gin.Engine) {
 
 func ValidateRequest(c *gin.Context, method func(uid string, payload []byte, params models.Params) (interface{}, error)) {
 	fbToken := c.GetHeader("token")
+	fmt.Println("fbtoken: ", fbToken)
 	if fbToken == "" {
 		responses.GlobalResponseNoAuth(c)
 		return
