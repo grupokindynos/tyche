@@ -383,6 +383,7 @@ func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.Shif
 	var response []hestia.ShiftV2
 	err = json.Unmarshal(payload, &response)
 	if err != nil {
+		teleBot2.SendError(string(payload))
 		return nil, err
 	}
 	return response, nil
