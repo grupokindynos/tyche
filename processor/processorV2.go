@@ -356,7 +356,7 @@ func (p *TycheProcessorV2) getShifts(status hestia.ShiftStatusV2) ([]hestia.Shif
 		return nil, err
 	}
 	client := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 60 * time.Second,
 	}
 	res, err := client.Do(req)
 	if err != nil {
