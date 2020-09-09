@@ -9,7 +9,7 @@ require (
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/grupokindynos/adrestia-go v0.0.0-20200831185518-65d04a9c41cf
-	github.com/grupokindynos/common v0.0.0-20200908144335-066c287eca99
+	github.com/grupokindynos/common v0.0.0-20200909173354-11e362c5f8b7
 	github.com/heroku/x v0.0.25
 	github.com/joho/godotenv v1.3.0
 	github.com/json-iterator/go v1.1.10 // indirect
