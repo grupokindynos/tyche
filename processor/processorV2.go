@@ -128,12 +128,13 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 	fmt.Println("processing shifts", processingShifts)
 	if err != nil {
 		// telegram bot
+		log.Println(fmt.Sprintf("handleProcessingShifts :: getProcessingShifts :: %s", err.Error()))
 		return
 	}
 	sentToUserShifts, err := p.getSentToUserShifts()
 	fmt.Println("sent user shifts", sentToUserShifts)
 	if err != nil {
-		log.Println(err)
+		log.Println(fmt.Sprintf("handleProcessingShifts :: getSentToUserShifts :: %s", err.Error()))
 		return
 	}
 	shifts := append(processingShifts, sentToUserShifts...)
@@ -170,7 +171,11 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 						Amount:  withdrawAmount,
 					})
 					if err != nil {
-						log.Println(err)
+						log.Println(fmt.Sprintf("handleProcessingShifts :: Withdraw :: %s :: %v", err.Error(), models.WithdrawParams{
+							Address: shift.ToAddress,
+							Asset:   shift.ToCoin,
+							Amount:  withdrawAmount,
+						} ))
 						continue
 					}
 					trade.Status = hestia.ShiftV2TradeStatusWithdrawn
@@ -186,7 +191,11 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 					TxId:     shift.PaymentProof,
 				})
 				if err != nil {
-					log.Println(err)
+					log.Println(fmt.Sprintf("handleProcessingShifts :: GetWithdrawalTxHash :: %s :: %v", err.Error(), models.WithdrawInfo{
+						Exchange: trade.Exchange,
+						Asset:    shift.ToCoin,
+						TxId:     shift.PaymentProof,
+					}))
 					continue
 				}
 				if txId != "" {
@@ -199,7 +208,7 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 			case hestia.ShiftV2TradeStatusUserDeposit:
 				amountReceived, err := getUserReceivedAmount(shift.ToCoin, shift.ToAddress, shift.PaymentProof)
 				if err != nil {
-					log.Println(err)
+					log.Println(fmt.Sprintf("handleProcessingShifts :: getUserReceivedAmount :: %s :: %s", err.Error(), shift.ID))
 					continue
 				}
 				shift.UserReceivedAmount = amountReceived
@@ -213,7 +222,7 @@ func (p *TycheProcessorV2) handleProcessingShifts(wg *sync.WaitGroup) {
 
 		_, err := p.Hestia.UpdateShiftV2(shift)
 		if err != nil {
-			log.Println(err)
+			log.Println(fmt.Sprintf("handleProcessingShifts :: UpdateShiftV2 :: %s", err.Error()))
 			//telegram bot
 		}
 	}
@@ -269,6 +278,7 @@ func (p *TycheProcessorV2) handleRefundShifts(wg *sync.WaitGroup) {
 func (p *TycheProcessorV2) handleCreatedTrade(trade *hestia.DirectionalTrade) {
 	txId, err := p.Adrestia.Trade(trade.Conversions[0])
 	if err != nil {
+		log.Println(fmt.Sprintf("handleCreatedTrade :: adrestia.TRade() :: %s", err.Error()))
 		log.Println(err)
 		return
 	}
@@ -282,7 +292,7 @@ func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) 
 	if trade.Conversions[0].Status == hestia.ExchangeOrderStatusCompleted {
 		status, err := p.checkTradeStatus(&trade.Conversions[1])
 		if err != nil {
-			log.Println(err)
+			log.Println(fmt.Sprintf("handlePerformedTrade :: checkTradeStatus(&trade.Conversions[1]) :: %s", err.Error()))
 			return
 		}
 		if status == hestia.ExchangeOrderStatusCompleted {
@@ -291,7 +301,7 @@ func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) 
 	} else {
 		status, err := p.checkTradeStatus(&trade.Conversions[0])
 		if err != nil {
-			log.Println(err)
+			log.Println(fmt.Sprintf("handlePerformedTrade :: checkTradeStatus(&trade.Conversions[0]) :: %s", err.Error()))
 			return
 		}
 		if status == hestia.ExchangeOrderStatusCompleted {
@@ -299,7 +309,7 @@ func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) 
 				trade.Conversions[1].Amount = trade.Conversions[0].ReceivedAmount
 				txId, err := p.Adrestia.Trade(trade.Conversions[1])
 				if err != nil {
-					log.Println(err)
+					log.Println(fmt.Sprintf("handlePerformedTrade :: Trade(trade.Conversions[1]) :: %s", err.Error()))
 					return
 				}
 				trade.Conversions[1].CreatedTime = time.Now().Unix()
@@ -315,6 +325,7 @@ func (p *TycheProcessorV2) handlePerformedTrade(trade *hestia.DirectionalTrade) 
 func (p *TycheProcessorV2) checkTradeStatus(trade *hestia.Trade) (hestia.ExchangeOrderStatus, error) {
 	tradeInfo, err := p.Adrestia.GetTradeStatus(*trade)
 	if err != nil {
+		log.Println(fmt.Sprintf("checkTradeStatus :: GetTradeStatus :: %s", err.Error()))
 		return hestia.ExchangeOrderStatusError, err
 	}
 	if tradeInfo.Status == hestia.ExchangeOrderStatusCompleted {
@@ -410,6 +421,7 @@ func (p *TycheProcessorV2) handleInboundDeposit(shift *hestia.ShiftV2) {
 		Address: shift.Payment.Address,
 	})
 	if err != nil {
+		log.Println(fmt.Sprintf("handleInboundDeposit :: DepositInfo :: %s", err.Error()))
 		log.Println(err)
 		return
 	}
