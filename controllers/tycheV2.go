@@ -127,7 +127,11 @@ func (s *TycheControllerV2) PrepareV2(uid string, payload []byte, _ models.Param
 		return nil, err
 	}
 
-	if payment.FiatInfo.Amount < 15.0 {
+	minimumAmount := 15.0
+	if prepareData.ToCoin == "BTC" {
+		minimumAmount = 25.0
+	}
+	if payment.FiatInfo.Amount < minimumAmount {
 		return nil, cerrors.ErrorShiftMinimumAmount
 	}
 
